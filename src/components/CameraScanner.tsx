@@ -175,7 +175,7 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
         if (!isOcrBusyRef.current && continuousOcrActiveRef.current && isScanningRef.current) {
           processOcrFrame();
         }
-      }, 1800);
+      }, 800);
     } else {
       if (ocrIntervalRef.current) {
         clearInterval(ocrIntervalRef.current);

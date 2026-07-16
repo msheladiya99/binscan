@@ -28,6 +28,11 @@ export function useOCR() {
             }
           }
         });
+        
+        await worker.setParameters({
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
+          tessedit_pageseg_mode: '7' as any // Treat as single text line (very fast)
+        });
 
         if (isMounted) {
           workerRef.current = worker;
