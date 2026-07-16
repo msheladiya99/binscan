@@ -3,7 +3,7 @@ import { CameraOff, Play, Square, Target, Loader2, RefreshCw, CheckCircle2, XCir
 import { useCamera } from '../hooks/useCamera';
 import { useOCR } from '../hooks/useOCR';
 import { useAppStore } from '../store/useAppStore';
-import { validateWarehouseCode } from '../utils/regex';
+import { validateWarehouseCode, normalizeWarehouseCode } from '../utils/regex';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 
@@ -172,51 +172,100 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
         const snapshot = canvas.toDataURL('image/jpeg', 0.85);
         setFrozenFrame(snapshot);
 
-        // 2. Crop centre 80% × 35% for OCR
+        // 2. Crop centre 80% × 60% for OCR (wider than before to avoid cutting off labels)
         const cropW = Math.round(w * 0.8);
-        const cropH = Math.round(h * 0.35);
+        const cropH = Math.round(h * 0.60);
         const cropX = Math.round((w - cropW) / 2);
         const cropY = Math.round((h - cropH) / 2);
 
-        const crop = document.createElement('canvas');
-        crop.width = cropW;
-        crop.height = cropH;
-        const cropCtx = crop.getContext('2d');
+        // Helper: build a canvas from drawing region
+        const makeCrop = (): HTMLCanvasElement => {
+          const c = document.createElement('canvas');
+          c.width = cropW;
+          c.height = cropH;
+          const cc = c.getContext('2d')!;
+          cc.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          return c;
+        };
 
-        if (cropCtx) {
-          cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+        // 3. Three preprocessing variants to maximise OCR hit chance
+        // Variant A: raw crop (no extra processing)
+        const cropRaw = makeCrop();
 
-          // Adaptive binarize
-          const imgData = cropCtx.getImageData(0, 0, cropW, cropH);
+        // Variant B: adaptive binarize (balanced threshold at 100% of mean, not 88%)
+        const cropBin = makeCrop();
+        (() => {
+          const cc = cropBin.getContext('2d')!;
+          const imgData = cc.getImageData(0, 0, cropW, cropH);
           const px = imgData.data;
           let sum = 0;
-          for (let i = 0; i < px.length; i += 4) {
+          for (let i = 0; i < px.length; i += 4)
             sum += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-          }
-          const thr = (sum / (px.length / 4)) * 0.88;
+          const thr = sum / (px.length / 4); // balanced mean threshold
           for (let i = 0; i < px.length; i += 4) {
             const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
             const v = g < thr ? 0 : 255;
             px[i] = px[i + 1] = px[i + 2] = v;
           }
-          cropCtx.putImageData(imgData, 0, 0);
+          cc.putImageData(imgData, 0, 0);
+        })();
 
-          // OCR
-          const rawText = await recognize(crop);
-          const clean = rawText.toUpperCase().replace(/\s+/g, '');
-          const matches = (clean.match(/[A-Z0-9]{1,5}(?:-[A-Z0-9]{1,5}){2,7}/g) || []) as string[];
-          const valid = Array.from(new Set(matches)).filter(m => validateWarehouseCode(m));
-
-          if (valid.length > 0) {
-            setScanState('found');
-            setDetectedCodes(valid);
-            if (valid.length === 1) {
-              // Auto-confirm if exactly one match
-              confirmCode(valid[0]);
-            }
-          } else {
-            setScanState('not_found');
+        // Variant C: high-contrast boost (stretch brightness range)
+        const cropHC = makeCrop();
+        (() => {
+          const cc = cropHC.getContext('2d')!;
+          const imgData = cc.getImageData(0, 0, cropW, cropH);
+          const px = imgData.data;
+          let minL = 255, maxL = 0;
+          for (let i = 0; i < px.length; i += 4) {
+            const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+            if (g < minL) minL = g;
+            if (g > maxL) maxL = g;
           }
+          const range = maxL - minL || 1;
+          for (let i = 0; i < px.length; i += 4) {
+            const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+            const v = Math.round(((g - minL) / range) * 255);
+            px[i] = px[i + 1] = px[i + 2] = v;
+          }
+          cc.putImageData(imgData, 0, 0);
+        })();
+
+        // 4. Run OCR on all three variants in parallel
+        const [rawA, rawB, rawC] = await Promise.all([
+          recognize(cropRaw).catch(() => ''),
+          recognize(cropBin).catch(() => ''),
+          recognize(cropHC).catch(() => ''),
+        ]);
+
+        // Debug: log raw OCR so developers can see what Tesseract is reading
+        console.debug('[OCR] raw (A):', rawA);
+        console.debug('[OCR] bin (B):', rawB);
+        console.debug('[OCR] hc  (C):', rawC);
+
+        // 5. Gather all candidate strings from all three results
+        const allRaw = [rawA, rawB, rawC].join(' ');
+        const cleaned = allRaw.toUpperCase().replace(/[^A-Z0-9\-\s]/g, ' ');
+        const segments = (cleaned.match(/[A-Z0-9]{1,5}(?:-[A-Z0-9]{1,5}){2,7}/g) || []);
+
+        // 6. Validate each segment — first with strict check, then with OCR-correction
+        const valid = Array.from(new Set(
+          segments.flatMap(m => {
+            if (validateWarehouseCode(m)) return [m];
+            const corrected = normalizeWarehouseCode(m);
+            return corrected ? [corrected] : [];
+          })
+        ));
+
+        if (valid.length > 0) {
+          setScanState('found');
+          setDetectedCodes(valid);
+          if (valid.length === 1) {
+            // Auto-confirm if exactly one match
+            confirmCode(valid[0]);
+          }
+        } else {
+          setScanState('not_found');
         }
       }
     } catch (err) {
