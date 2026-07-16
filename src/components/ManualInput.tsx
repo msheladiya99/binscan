@@ -84,7 +84,7 @@ export default function ManualInput() {
   const isInvalid = codeValue && !validateWarehouseCode(codeValue);
 
   // Generate selection lists
-  const standardAisles = Array.from({ length: 13 }, (_, i) => `A${String(i + 1).padStart(2, '0')}`);
+  const standardAisles = Array.from({ length: 15 }, (_, i) => `A${String(i + 1).padStart(2, '0')}`);
   const standardBays = Array.from({ length: 7 }, (_, i) => `00${i + 1}`);
   const standardLevels = Array.from({ length: 7 }, (_, i) => `0${i + 1}`);
   const binPositions = ['A', 'B', 'C'];
