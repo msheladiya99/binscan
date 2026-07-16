@@ -3,7 +3,7 @@ import { CameraOff, Play, Square, Target, Loader2, RefreshCw, CheckCircle2, XCir
 import { useCamera } from '../hooks/useCamera';
 import { useOCR } from '../hooks/useOCR';
 import { useAppStore } from '../store/useAppStore';
-import { validateWarehouseCode, normalizeWarehouseCode } from '../utils/regex';
+import { extractWarehouseCodes } from '../utils/regex';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 
@@ -29,6 +29,8 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
   const [frozenFrame, setFrozenFrame] = React.useState<string | null>(null);
   const [detectedCodes, setDetectedCodes] = React.useState<string[]>([]);
   const [ocrFeedback, setOcrFeedback] = React.useState('OCR engine loading...');
+  // Raw OCR text shown in UI when detection fails — helps diagnose misreads
+  const [lastOcrText, setLastOcrText] = React.useState('');
 
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const captureCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -243,25 +245,20 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
         console.debug('[OCR] bin (B):', rawB);
         console.debug('[OCR] hc  (C):', rawC);
 
-        // 5. Gather all candidate strings from all three results
-        const allRaw = [rawA, rawB, rawC].join(' ');
-        const cleaned = allRaw.toUpperCase().replace(/[^A-Z0-9\-\s]/g, ' ');
-        const segments = (cleaned.match(/[A-Z0-9]{1,5}(?:-[A-Z0-9]{1,5}){2,7}/g) || []);
+        // 5. Combine all OCR results and store for UI display
+        const allRaw = [rawA, rawB, rawC]
+          .map(t => t.trim())
+          .filter(t => t.length > 0)
+          .join(' | ');
+        setLastOcrText(allRaw || '(nothing read)');
 
-        // 6. Validate each segment — first with strict check, then with OCR-correction
-        const valid = Array.from(new Set(
-          segments.flatMap(m => {
-            if (validateWarehouseCode(m)) return [m];
-            const corrected = normalizeWarehouseCode(m);
-            return corrected ? [corrected] : [];
-          })
-        ));
+        // 6. Use multi-strategy extractor (handles hyphens, spaces, dense formats)
+        const valid = extractWarehouseCodes([rawA, rawB, rawC].join(' '));
 
         if (valid.length > 0) {
           setScanState('found');
           setDetectedCodes(valid);
           if (valid.length === 1) {
-            // Auto-confirm if exactly one match
             confirmCode(valid[0]);
           }
         } else {
@@ -451,6 +448,17 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
            isCapturing ? '⏳ Analysing captured image...'                                   :
                         ocrFeedback}
         </div>
+
+        {/* ── OCR Debug box — shown when not_found so user can see what was read ── */}
+        {notFound && lastOcrText && (
+          <div className="bg-warehouse-bg border border-red-500/30 rounded-lg p-3 space-y-1">
+            <p className="text-[9px] font-mono font-bold text-red-400/70 tracking-widest">OCR READ (raw text):</p>
+            <p className="text-[11px] font-mono text-warehouse-muted break-all leading-relaxed">{lastOcrText}</p>
+            <p className="text-[9px] font-mono text-warehouse-muted/50 mt-1">
+              Expected format: <span className="text-accent-amber">F0-A02-013-03-B</span>
+            </p>
+          </div>
+        )}
 
         {/* Code chips */}
         {codesFound && detectedCodes.length > 1 && (
