@@ -17,6 +17,8 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
   const { ocrState, ocrProgress, ocrStatusText, recognize } = useOCR();
 
   const [isOcrBusy, setIsOcrBusy] = React.useState(false);
+  const [isFlashActive, setIsFlashActive] = React.useState(false);
+  const [frozenFrame, setFrozenFrame] = React.useState<string | null>(null);
   const [detectedCodes, setDetectedCodes] = React.useState<string[]>([]);
   const [ocrFeedback, setOcrFeedback] = React.useState({ text: 'OCR engine loading...', type: 'info' });
   const [continuousOcrActive, setContinuousOcrActive] = React.useState(true);
@@ -76,9 +78,11 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
         .catch(err => console.error("Auto-start camera failed:", err));
     } else {
       stopCamera();
+      setFrozenFrame(null);
     }
     return () => {
       stopCamera();
+      setFrozenFrame(null);
     };
   }, [isScanning, settings.defaultCamera, startCamera, stopCamera]);
 
@@ -121,6 +125,11 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
     
     ocrProcessingRef.current = true;
     setIsOcrBusy(true);
+    
+    // Shutter camera flash effect
+    setIsFlashActive(true);
+    setTimeout(() => setIsFlashActive(false), 150);
+
     const video = videoRef.current;
     const canvas = captureCanvasRef.current;
     if (!video || !canvas) {
@@ -134,68 +143,85 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
       const w = video.videoWidth || 640;
       const h = video.videoHeight || 480;
 
-      // Crop the middle 80% width and 35% height (aligns with visual viewfinder box)
-      const cropWidth = Math.round(w * 0.8);
-      const cropHeight = Math.round(h * 0.35);
-      const cropX = Math.round((w - cropWidth) / 2);
-      const cropY = Math.round((h - cropHeight) / 2);
-
-      canvas.width = cropWidth;
-      canvas.height = cropHeight;
+      // 1. Draw the FULL video feed onto the off-screen canvas to freeze the UI
+      canvas.width = w;
+      canvas.height = h;
 
       if (ctx) {
-        // Draw only the cropped viewport region
-        ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+        ctx.drawImage(video, 0, 0, w, h);
         
-        const imgData = ctx.getImageData(0, 0, cropWidth, cropHeight);
-        const data = imgData.data;
+        const fullSnapshot = canvas.toDataURL('image/jpeg', 0.8);
+        setFrozenFrame(fullSnapshot);
 
-        // Dynamic local binarization to enhance text contrast (black text on white background)
-        let sum = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          sum += gray;
-        }
-        const avgBrightness = sum / (data.length / 4);
-        const threshold = avgBrightness * 0.88; // emphasize black lines
+        // 2. Crop the center 80% width and 35% height for Tesseract OCR
+        const cropWidth = Math.round(w * 0.8);
+        const cropHeight = Math.round(h * 0.35);
+        const cropX = Math.round((w - cropWidth) / 2);
+        const cropY = Math.round((h - cropHeight) / 2);
 
-        for (let i = 0; i < data.length; i += 4) {
-          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          const val = gray < threshold ? 0 : 255;
-          data[i] = val;
-          data[i+1] = val;
-          data[i+2] = val;
-        }
-        ctx.putImageData(imgData, 0, 0);
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = cropWidth;
+        cropCanvas.height = cropHeight;
+        const cropCtx = cropCanvas.getContext('2d');
 
-        // Perform OCR on the cropped, binarized canvas
-        const rawText = await recognize(canvas);
-        const upper = rawText.toUpperCase();
-        
-        // Strip out all whitespace to prevent spacing character discrepancies
-        const cleanText = upper.replace(/\s+/g, '');
-        const codeRegex = /[A-Z0-9]{1,5}(?:-[A-Z0-9]{1,5}){2,7}/g;
-        const matches = (cleanText.match(codeRegex) || []) as string[];
-        
-        const validMatches = Array.from(new Set(matches)).filter(m => validateWarehouseCode(m));
-        
-        if (validMatches.length > 0) {
-          setDetectedCodes(validMatches);
-          if (validMatches.length === 1) {
-            confirmCode(validMatches[0]);
+        if (cropCtx) {
+          cropCtx.drawImage(canvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+          // Binarize the cropped canvas dynamically
+          const imgData = cropCtx.getImageData(0, 0, cropWidth, cropHeight);
+          const data = imgData.data;
+          let sum = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            sum += gray;
+          }
+          const avgBrightness = sum / (data.length / 4);
+          const threshold = avgBrightness * 0.88;
+
+          for (let i = 0; i < data.length; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            const val = gray < threshold ? 0 : 255;
+            data[i] = val;
+            data[i+1] = val;
+            data[i+2] = val;
+          }
+          cropCtx.putImageData(imgData, 0, 0);
+
+          // Perform OCR on the binarized cropped image
+          const rawText = await recognize(cropCanvas);
+          const upper = rawText.toUpperCase();
+          
+          // Strip out spaces
+          const cleanText = upper.replace(/\s+/g, '');
+          const codeRegex = /[A-Z0-9]{1,5}(?:-[A-Z0-9]{1,5}){2,7}/g;
+          const matches = (cleanText.match(codeRegex) || []) as string[];
+          
+          const validMatches = Array.from(new Set(matches)).filter(m => validateWarehouseCode(m));
+          
+          if (validMatches.length > 0) {
+            setDetectedCodes(validMatches);
+            if (validMatches.length === 1) {
+              confirmCode(validMatches[0]);
+            }
+          } else {
+            // Unfreeze the screen after 1.2 seconds if no matches were detected
+            setTimeout(() => {
+              setFrozenFrame(null);
+            }, 1200);
           }
         }
       }
     } catch (err) {
       console.warn("OCR recognition cycle failed:", err);
+      setFrozenFrame(null);
     } finally {
       ocrProcessingRef.current = false;
       setIsOcrBusy(false);
       
-      // Schedule the next frame check only if scanning is still active
+      // Schedule the next check only if scanning is active
       if (isScanningRef.current && continuousOcrActiveRef.current) {
         if (ocrTimeoutRef.current) clearTimeout(ocrTimeoutRef.current);
-        ocrTimeoutRef.current = setTimeout(processOcrFrame, 500);
+        ocrTimeoutRef.current = setTimeout(processOcrFrame, 1300);
       }
     }
   }, [ocrState, stream, recognize, confirmCode]);
@@ -227,6 +253,20 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
         isScanning ? 'scanning-active' : ''
       }`}>
         <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted></video>
+
+        {/* Frozen Frame snapshot display */}
+        {frozenFrame && (
+          <img 
+            src={frozenFrame} 
+            className="absolute inset-0 w-full h-full object-cover z-[5] animate-sticker-appear" 
+            alt="Captured snapshot"
+          />
+        )}
+
+        {/* Shutter Camera Flash overlay */}
+        {isFlashActive && (
+          <div className="absolute inset-0 bg-white z-[30] opacity-80 pointer-events-none transition-opacity duration-150"></div>
+        )}
 
         {/* Reticles */}
         <div className="viewfinder-reticle">
