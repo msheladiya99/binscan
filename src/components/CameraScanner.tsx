@@ -174,86 +174,63 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
         const snapshot = canvas.toDataURL('image/jpeg', 0.85);
         setFrozenFrame(snapshot);
 
-        // 2. Crop centre 80% × 60% for OCR (wider than before to avoid cutting off labels)
+        // 2. Crop centre 80% × 40% for OCR (focused viewport area to avoid barcodes)
         const cropW = Math.round(w * 0.8);
-        const cropH = Math.round(h * 0.60);
+        const cropH = Math.round(h * 0.40);
         const cropX = Math.round((w - cropW) / 2);
         const cropY = Math.round((h - cropH) / 2);
 
-        // Helper: build a canvas from drawing region
-        const makeCrop = (): HTMLCanvasElement => {
-          const c = document.createElement('canvas');
-          c.width = cropW;
-          c.height = cropH;
-          const cc = c.getContext('2d')!;
-          cc.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-          return c;
-        };
+        // 3. Create a 2.5x upscaled canvas for high-definition character scanning
+        const scale = 2.5;
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = cropW * scale;
+        cropCanvas.height = cropH * scale;
+        const cropCtx = cropCanvas.getContext('2d')!;
 
-        // 3. Three preprocessing variants to maximise OCR hit chance
-        // Variant A: raw crop (no extra processing)
-        const cropRaw = makeCrop();
+        // Enable high-quality smoothing during rescale
+        cropCtx.imageSmoothingEnabled = true;
+        cropCtx.imageSmoothingQuality = 'high';
+        cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW * scale, cropH * scale);
 
-        // Variant B: adaptive binarize (balanced threshold at 100% of mean, not 88%)
-        const cropBin = makeCrop();
-        (() => {
-          const cc = cropBin.getContext('2d')!;
-          const imgData = cc.getImageData(0, 0, cropW, cropH);
-          const px = imgData.data;
-          let sum = 0;
-          for (let i = 0; i < px.length; i += 4)
-            sum += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-          const thr = sum / (px.length / 4); // balanced mean threshold
-          for (let i = 0; i < px.length; i += 4) {
-            const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-            const v = g < thr ? 0 : 255;
-            px[i] = px[i + 1] = px[i + 2] = v;
-          }
-          cc.putImageData(imgData, 0, 0);
-        })();
+        // 4. Preprocess: grayscale conversion, contrast stretching, and local dynamic thresholding
+        const imgData = cropCtx.getImageData(0, 0, cropCanvas.width, cropCanvas.height);
+        const data = imgData.data;
 
-        // Variant C: high-contrast boost (stretch brightness range)
-        const cropHC = makeCrop();
-        (() => {
-          const cc = cropHC.getContext('2d')!;
-          const imgData = cc.getImageData(0, 0, cropW, cropH);
-          const px = imgData.data;
-          let minL = 255, maxL = 0;
-          for (let i = 0; i < px.length; i += 4) {
-            const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-            if (g < minL) minL = g;
-            if (g > maxL) maxL = g;
-          }
-          const range = maxL - minL || 1;
-          for (let i = 0; i < px.length; i += 4) {
-            const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-            const v = Math.round(((g - minL) / range) * 255);
-            px[i] = px[i + 1] = px[i + 2] = v;
-          }
-          cc.putImageData(imgData, 0, 0);
-        })();
+        let minL = 255;
+        let maxL = 0;
+        const grays = new Uint8Array(data.length / 4);
 
-        // 4. Run OCR on all three variants in parallel
-        const [rawA, rawB, rawC] = await Promise.all([
-          recognize(cropRaw).catch(() => ''),
-          recognize(cropBin).catch(() => ''),
-          recognize(cropHC).catch(() => ''),
-        ]);
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          grays[i / 4] = gray;
+          if (gray < minL) minL = gray;
+          if (gray > maxL) maxL = gray;
+        }
 
-        // Debug: log raw OCR so developers can see what Tesseract is reading
-        console.debug('[OCR] raw (A):', rawA);
-        console.debug('[OCR] bin (B):', rawB);
-        console.debug('[OCR] hc  (C):', rawC);
+        const range = maxL - minL || 1;
+        // Binarize using balanced dynamic range threshold (45% for thick, bold text lines)
+        const threshold = minL + range * 0.45;
 
-        // 5. Combine all OCR results and store for UI display
-        const allRaw = [rawA, rawB, rawC]
-          .map(t => t.trim())
-          .filter(t => t.length > 0)
-          .join(' | ');
-        setLastOcrText(allRaw || '(nothing read)');
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = grays[i / 4];
+          const val = gray < threshold ? 0 : 255;
+          data[i] = val;
+          data[i + 1] = val;
+          data[i + 2] = val;
+          data[i + 3] = 255; // fully opaque
+        }
+        cropCtx.putImageData(imgData, 0, 0);
+
+        // 5. Run Tesseract OCR exactly once on the high-definition binary canvas
+        const rawOcr = await recognize(cropCanvas);
+        console.debug('[OCR] single run text:', rawOcr);
+        setLastOcrText(rawOcr.trim() || '(nothing read)');
 
         // 6. Use multi-strategy extractor (handles hyphens, spaces, dense formats)
-        const valid = extractWarehouseCodes([rawA, rawB, rawC].join(' '));
+        const valid = extractWarehouseCodes(rawOcr);
 
         if (valid.length > 0) {
           setScanState('found');
