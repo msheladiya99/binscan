@@ -24,7 +24,8 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const captureCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const zxingControlsRef = React.useRef<IScannerControls | null>(null);
-  const ocrIntervalRef = React.useRef<any>(null);
+  const ocrTimeoutRef = React.useRef<any>(null);
+  const ocrProcessingRef = React.useRef<boolean>(false);
 
   const isOcrBusyRef = React.useRef(isOcrBusy);
   const continuousOcrActiveRef = React.useRef(continuousOcrActive);
@@ -65,6 +66,7 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
     playScanBeep();
     triggerVibrate();
     setIsScanning(false);
+    setDetectedCodes([]); // clear chips list
     onShowToast(`Location code detected: ${clean}`);
   }, [setActiveCode, addToHistory, setIsScanning, onShowToast]);
 
@@ -115,12 +117,14 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
   }, [ocrState, ocrStatusText]);
 
   const processOcrFrame = React.useCallback(async () => {
-    if (isOcrBusyRef.current || ocrState !== 'ready' || !stream || !isScanningRef.current) return;
+    if (ocrProcessingRef.current || ocrState !== 'ready' || !stream || !isScanningRef.current) return;
     
+    ocrProcessingRef.current = true;
     setIsOcrBusy(true);
     const video = videoRef.current;
     const canvas = captureCanvasRef.current;
     if (!video || !canvas) {
+      ocrProcessingRef.current = false;
       setIsOcrBusy(false);
       return;
     }
@@ -185,27 +189,33 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
     } catch (err) {
       console.warn("OCR recognition cycle failed:", err);
     } finally {
+      ocrProcessingRef.current = false;
       setIsOcrBusy(false);
+      
+      // Schedule the next frame check only if scanning is still active
+      if (isScanningRef.current && continuousOcrActiveRef.current) {
+        if (ocrTimeoutRef.current) clearTimeout(ocrTimeoutRef.current);
+        ocrTimeoutRef.current = setTimeout(processOcrFrame, 500);
+      }
     }
   }, [ocrState, stream, recognize, confirmCode]);
 
   React.useEffect(() => {
     if (isScanning && stream && ocrState === 'ready' && continuousOcrActive) {
-      ocrIntervalRef.current = setInterval(() => {
-        if (!isOcrBusyRef.current && continuousOcrActiveRef.current && isScanningRef.current) {
-          processOcrFrame();
-        }
-      }, 800);
+      if (ocrTimeoutRef.current) {
+        clearTimeout(ocrTimeoutRef.current);
+      }
+      ocrTimeoutRef.current = setTimeout(processOcrFrame, 500);
     } else {
-      if (ocrIntervalRef.current) {
-        clearInterval(ocrIntervalRef.current);
-        ocrIntervalRef.current = null;
+      if (ocrTimeoutRef.current) {
+        clearTimeout(ocrTimeoutRef.current);
+        ocrTimeoutRef.current = null;
       }
     }
     return () => {
-      if (ocrIntervalRef.current) {
-        clearInterval(ocrIntervalRef.current);
-        ocrIntervalRef.current = null;
+      if (ocrTimeoutRef.current) {
+        clearTimeout(ocrTimeoutRef.current);
+        ocrTimeoutRef.current = null;
       }
     };
   }, [isScanning, stream, ocrState, continuousOcrActive, processOcrFrame]);
