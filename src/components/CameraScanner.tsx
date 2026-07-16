@@ -129,29 +129,49 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
       const ctx = canvas.getContext('2d');
       const w = video.videoWidth || 640;
       const h = video.videoHeight || 480;
-      canvas.width = w;
-      canvas.height = h;
+
+      // Crop the middle 80% width and 35% height (aligns with visual viewfinder box)
+      const cropWidth = Math.round(w * 0.8);
+      const cropHeight = Math.round(h * 0.35);
+      const cropX = Math.round((w - cropWidth) / 2);
+      const cropY = Math.round((h - cropHeight) / 2);
+
+      canvas.width = cropWidth;
+      canvas.height = cropHeight;
 
       if (ctx) {
-        ctx.drawImage(video, 0, 0, w, h);
+        // Draw only the cropped viewport region
+        ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
         
-        const imgData = ctx.getImageData(0, 0, w, h);
+        const imgData = ctx.getImageData(0, 0, cropWidth, cropHeight);
         const data = imgData.data;
+
+        // Dynamic local binarization to enhance text contrast (black text on white background)
+        let sum = 0;
         for (let i = 0; i < data.length; i += 4) {
           const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          const contrast = 1.6;
-          const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-          const val = factor * (gray - 128) + 128;
+          sum += gray;
+        }
+        const avgBrightness = sum / (data.length / 4);
+        const threshold = avgBrightness * 0.88; // emphasize black lines
+
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          const val = gray < threshold ? 0 : 255;
           data[i] = val;
           data[i+1] = val;
           data[i+2] = val;
         }
         ctx.putImageData(imgData, 0, 0);
 
-        const text = await recognize(canvas);
-        const upper = text.toUpperCase();
-        const codeRegex = /\b[A-Z0-9]{1,5}(?:-[A-Z0-9]{1,5}){2,7}\b/g;
-        const matches = (upper.match(codeRegex) || []) as string[];
+        // Perform OCR on the cropped, binarized canvas
+        const rawText = await recognize(canvas);
+        const upper = rawText.toUpperCase();
+        
+        // Strip out all whitespace to prevent spacing character discrepancies
+        const cleanText = upper.replace(/\s+/g, '');
+        const codeRegex = /[A-Z0-9]{1,5}(?:-[A-Z0-9]{1,5}){2,7}/g;
+        const matches = (cleanText.match(codeRegex) || []) as string[];
         
         const validMatches = Array.from(new Set(matches)).filter(m => validateWarehouseCode(m));
         
