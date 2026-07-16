@@ -56,7 +56,7 @@ export const useAppStore = create<AppState>()(
       settings: DEFAULT_SETTINGS,
       history: [],
       activeCode: '',
-      isScanning: true, // starts scanning automatically on load
+      isScanning: false, // camera stream off on initial load
       
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
       updateSettings: (newSettings) => set((state) => ({ settings: { ...state.settings, ...newSettings } })),

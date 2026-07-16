@@ -14,10 +14,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 export default function App() {
   const { 
     theme, 
-    isScanning 
+    isScanning,
+    setIsScanning
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = React.useState<'camera' | 'manual' | 'history'>('camera');
+  const [activeTab, setActiveTab] = React.useState<'camera' | 'manual' | 'history'>('manual');
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState('');
   
@@ -25,6 +26,16 @@ export default function App() {
   const { ocrState, ocrStatusText } = useOCR();
 
   const cameraStatusText = isScanning ? 'CAM: ON' : 'CAM: OFF';
+
+  // Synchronize camera state on tab changes to conserve resources
+  const handleTabChange = (tab: 'camera' | 'manual' | 'history') => {
+    setActiveTab(tab);
+    if (tab === 'camera') {
+      setIsScanning(true);
+    } else {
+      setIsScanning(false);
+    }
+  };
 
   // Toggle Dark Mode globally
   React.useEffect(() => {
@@ -68,21 +79,21 @@ export default function App() {
           <section className="input-panel card">
             <div className="tab-headers">
               <button
-                onClick={() => setActiveTab('camera')}
+                onClick={() => handleTabChange('camera')}
                 className={`tab-btn ${activeTab === 'camera' ? 'active' : ''}`}
               >
                 <Camera size={16} className="tab-icon" />
                 <span>📷 SCAN CODE</span>
               </button>
               <button
-                onClick={() => setActiveTab('manual')}
+                onClick={() => handleTabChange('manual')}
                 className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
               >
                 <Keyboard size={16} className="tab-icon" />
                 <span>⌨ MANUAL ENTRY</span>
               </button>
               <button
-                onClick={() => setActiveTab('history')}
+                onClick={() => handleTabChange('history')}
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
               >
                 <History size={16} className="tab-icon" />
