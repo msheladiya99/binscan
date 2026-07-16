@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { AlertCircle, CheckCircle, X, Keyboard, Layers } from 'lucide-react';
 import { validateWarehouseCode } from '../utils/regex';
 import { useAppStore } from '../store/useAppStore';
-
+import CustomSelect from './CustomSelect';
 export default function ManualInput() {
   const { setActiveCode, addToHistory } = useAppStore();
   const [entryMode, setEntryMode] = React.useState<'builder' | 'keyboard'>('builder');
@@ -175,62 +175,39 @@ export default function ManualInput() {
             </div>
 
             {/* Aisle */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">
-                {builderType === 'standard' ? 'Aisle' : builderType === 'chiller' ? 'Chiller' : 'FR Aisle'}
-              </span>
-              <select
-                value={selectedAisle}
-                onChange={(e) => setSelectedAisle(e.target.value)}
-                className="dropdown-select font-mono"
-              >
-                {builderType === 'standard' && standardAisles.map(a => <option key={a} value={a}>{a}</option>)}
-                {builderType === 'chiller' && chillerAisles.map(a => <option key={a} value={a}>{a}</option>)}
-                {builderType === 'frozen' && frozenAisles.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
+            <CustomSelect 
+              label={builderType === 'standard' ? 'Aisle' : builderType === 'chiller' ? 'Chiller' : 'FR Aisle'}
+              value={selectedAisle}
+              onChange={setSelectedAisle}
+              options={builderType === 'standard' ? standardAisles : builderType === 'chiller' ? chillerAisles : frozenAisles}
+            />
 
             {/* Bay/Rack (not present in 4-segment Chiller/Frozen Room layouts) */}
             {builderType === 'standard' && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Bay/Rack</span>
-                <select
-                  value={selectedBay}
-                  onChange={(e) => setSelectedBay(e.target.value)}
-                  className="dropdown-select font-mono"
-                >
-                  {standardBays.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
+              <CustomSelect 
+                label="Bay/Rack"
+                value={selectedBay}
+                onChange={setSelectedBay}
+                options={standardBays}
+              />
             )}
 
             {/* Level */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Level</span>
-              <select
-                value={selectedLevel}
-                onChange={(e) => setSelectedLevel(e.target.value)}
-                className="dropdown-select font-mono"
-              >
-                {builderType === 'standard' && standardLevels.map(l => <option key={l} value={l}>{l}</option>)}
-                {builderType === 'chiller' && chillerLevels.map(l => <option key={l} value={l}>{l}</option>)}
-                {builderType === 'frozen' && frozenLevels.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
+            <CustomSelect 
+              label="Level"
+              value={selectedLevel}
+              onChange={setSelectedLevel}
+              options={builderType === 'standard' ? standardLevels : builderType === 'chiller' ? chillerLevels : frozenLevels}
+            />
 
             {/* Bin */}
-            <div className={`flex flex-col gap-1 ${builderType === 'standard' ? 'col-span-3 md:col-span-1' : 'col-span-2 md:col-span-1'}`}>
-              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Bin Pos</span>
-              <select
+            <div className={`${builderType === 'standard' ? 'col-span-3 md:col-span-1' : 'col-span-2 md:col-span-1'}`}>
+              <CustomSelect 
+                label="Bin Pos"
                 value={selectedBin}
-                onChange={(e) => setSelectedBin(e.target.value)}
-                className="dropdown-select font-mono"
-              >
-                {builderType === 'chiller'
-                  ? chillerBins.map(b => <option key={b} value={b}>{b}</option>)
-                  : binPositions.map(b => <option key={b} value={b}>{b}</option>)
-                }
-              </select>
+                onChange={setSelectedBin}
+                options={builderType === 'chiller' ? chillerBins : binPositions}
+              />
             </div>
           </div>
         </div>
