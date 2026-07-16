@@ -9,7 +9,7 @@ export default function ManualInput() {
   const [entryMode, setEntryMode] = React.useState<'builder' | 'keyboard'>('builder');
   
   // Dropdown builder states
-  const [builderType, setBuilderType] = React.useState<'standard' | 'chiller'>('standard');
+  const [builderType, setBuilderType] = React.useState<'standard' | 'chiller' | 'frozen'>('standard');
   const [selectedFloor, setSelectedFloor] = React.useState('F0');
   const [selectedAisle, setSelectedAisle] = React.useState('A01');
   const [selectedBay, setSelectedBay] = React.useState('001');
@@ -33,11 +33,14 @@ export default function ManualInput() {
       setSelectedAisle('A01');
       setSelectedBay('001');
       setSelectedLevel('01');
-    } else {
-      setSelectedFloor('CR');
+    } else if (builderType === 'chiller') {
+      setSelectedFloor('CR01');
       setSelectedAisle('001');
-      setSelectedBay('01');
-      setSelectedLevel('1');
+      setSelectedLevel('01');
+    } else {
+      setSelectedFloor('FR01');
+      setSelectedAisle('001');
+      setSelectedLevel('01');
     }
     setSelectedBin('A');
   }, [builderType]);
@@ -47,7 +50,9 @@ export default function ManualInput() {
     if (entryMode === 'builder') {
       const code = builderType === 'standard'
         ? `${selectedFloor}-${selectedAisle}-${selectedBay}-${selectedLevel}-${selectedBin}`
-        : `CR-${selectedAisle}-${selectedBay}-${selectedLevel}-${selectedBin}`;
+        : builderType === 'chiller'
+        ? `CR01-${selectedAisle}-${selectedLevel}-${selectedBin}`
+        : `FR01-${selectedAisle}-${selectedLevel}-${selectedBin}`;
       setValue('code', code, { shouldValidate: true });
     }
   }, [entryMode, builderType, selectedFloor, selectedAisle, selectedBay, selectedLevel, selectedBin, setValue]);
@@ -82,11 +87,14 @@ export default function ManualInput() {
   const standardAisles = Array.from({ length: 13 }, (_, i) => `A${String(i + 1).padStart(2, '0')}`);
   const standardBays = Array.from({ length: 7 }, (_, i) => `00${i + 1}`);
   const standardLevels = Array.from({ length: 7 }, (_, i) => `0${i + 1}`);
-  const binPositions = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const binPositions = ['A', 'B', 'C'];
 
   const chillerAisles = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(3, '0'));
-  const chillerBays = Array.from({ length: 7 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const chillerLevels = Array.from({ length: 7 }, (_, i) => String(i + 1));
+  const chillerLevels = Array.from({ length: 7 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const chillerBins = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+  const frozenAisles = Array.from({ length: 14 }, (_, i) => String(i + 1).padStart(3, '0'));
+  const frozenLevels = Array.from({ length: 7 }, (_, i) => String(i + 1).padStart(2, '0'));
 
   return (
     <div className="flex flex-col gap-4 py-2">
@@ -118,7 +126,7 @@ export default function ManualInput() {
       {entryMode === 'builder' && (
         <div className="bg-warehouse-panel/20 border border-warehouse-border rounded-xl p-4 space-y-4">
           {/* Builder format switch */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setBuilderType('standard')}
@@ -141,51 +149,60 @@ export default function ManualInput() {
             >
               Chiller Room
             </button>
+            <button
+              type="button"
+              onClick={() => setBuilderType('frozen')}
+              className={`flex-1 py-1.5 rounded font-sans text-xs font-bold border transition ${
+                builderType === 'frozen'
+                  ? 'bg-accent-pink/10 border-accent-pink text-accent-pink'
+                  : 'bg-transparent border-warehouse-border text-warehouse-muted hover:text-warehouse-text'
+              }`}
+            >
+              Frozen Room
+            </button>
           </div>
 
           {/* Select dropdowns grid */}
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+          <div className={`grid gap-3 ${builderType === 'standard' ? 'grid-cols-3 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'}`}>
             {/* Floor/Zone prefix (locked) */}
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">
                 {builderType === 'standard' ? 'Floor' : 'Zone'}
               </span>
               <div className="dropdown-select font-mono bg-warehouse-panel/40 flex items-center justify-center border border-warehouse-border text-warehouse-muted py-2 px-3 rounded-lg text-sm select-none font-semibold">
-                {builderType === 'standard' ? 'F0' : 'CR'}
+                {builderType === 'standard' ? 'F0' : builderType === 'chiller' ? 'CR01' : 'FR01'}
               </div>
             </div>
 
             {/* Aisle */}
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">
-                {builderType === 'standard' ? 'Aisle' : 'Chiller'}
+                {builderType === 'standard' ? 'Aisle' : builderType === 'chiller' ? 'Chiller' : 'FR Aisle'}
               </span>
               <select
                 value={selectedAisle}
                 onChange={(e) => setSelectedAisle(e.target.value)}
                 className="dropdown-select font-mono"
               >
-                {builderType === 'standard'
-                  ? standardAisles.map(a => <option key={a} value={a}>{a}</option>)
-                  : chillerAisles.map(a => <option key={a} value={a}>{a}</option>)
-                }
+                {builderType === 'standard' && standardAisles.map(a => <option key={a} value={a}>{a}</option>)}
+                {builderType === 'chiller' && chillerAisles.map(a => <option key={a} value={a}>{a}</option>)}
+                {builderType === 'frozen' && frozenAisles.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
 
-            {/* Bay */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Bay/Rack</span>
-              <select
-                value={selectedBay}
-                onChange={(e) => setSelectedBay(e.target.value)}
-                className="dropdown-select font-mono"
-              >
-                {builderType === 'standard'
-                  ? standardBays.map(b => <option key={b} value={b}>{b}</option>)
-                  : chillerBays.map(b => <option key={b} value={b}>{b}</option>)
-                }
-              </select>
-            </div>
+            {/* Bay/Rack (not present in 4-segment Chiller/Frozen Room layouts) */}
+            {builderType === 'standard' && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Bay/Rack</span>
+                <select
+                  value={selectedBay}
+                  onChange={(e) => setSelectedBay(e.target.value)}
+                  className="dropdown-select font-mono"
+                >
+                  {standardBays.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+            )}
 
             {/* Level */}
             <div className="flex flex-col gap-1">
@@ -195,22 +212,24 @@ export default function ManualInput() {
                 onChange={(e) => setSelectedLevel(e.target.value)}
                 className="dropdown-select font-mono"
               >
-                {builderType === 'standard'
-                  ? standardLevels.map(l => <option key={l} value={l}>{l}</option>)
-                  : chillerLevels.map(l => <option key={l} value={l}>{l}</option>)
-                }
+                {builderType === 'standard' && standardLevels.map(l => <option key={l} value={l}>{l}</option>)}
+                {builderType === 'chiller' && chillerLevels.map(l => <option key={l} value={l}>{l}</option>)}
+                {builderType === 'frozen' && frozenLevels.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
 
             {/* Bin */}
-            <div className="flex flex-col gap-1 col-span-3 md:col-span-1">
+            <div className={`flex flex-col gap-1 ${builderType === 'standard' ? 'col-span-3 md:col-span-1' : 'col-span-2 md:col-span-1'}`}>
               <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Bin Pos</span>
               <select
                 value={selectedBin}
                 onChange={(e) => setSelectedBin(e.target.value)}
                 className="dropdown-select font-mono"
               >
-                {binPositions.map(b => <option key={b} value={b}>{b}</option>)}
+                {builderType === 'chiller'
+                  ? chillerBins.map(b => <option key={b} value={b}>{b}</option>)
+                  : binPositions.map(b => <option key={b} value={b}>{b}</option>)
+                }
               </select>
             </div>
           </div>
@@ -226,7 +245,7 @@ export default function ManualInput() {
           <input
             id="manual-input-field"
             type="text"
-            placeholder="e.g. F0-A02-013-03-B or CR-001-01-1-A"
+            placeholder="e.g. F0-A02-013-03-B, CR01-001-01-A, or FR01-001-01-A"
             {...register('code')}
             onChange={handleInputChange}
             disabled={entryMode === 'builder'}
@@ -266,7 +285,7 @@ export default function ManualInput() {
           <div className="leading-relaxed">
             <span className="font-bold text-warehouse-text">Validation Format Status:</span>
             {isValid && <span className="text-accent-teal font-semibold font-mono block mt-1">MATCH FOUND: Valid Location Code</span>}
-            {isInvalid && <span className="text-accent-red font-semibold font-mono block mt-1">ERROR: Expected A0-B00-000-00-C or CR-000-00-0-A</span>}
+            {isInvalid && <span className="text-accent-red font-semibold font-mono block mt-1">ERROR: Expected F0-A00-000-00-C, CR01-000-00-A, or FR01-000-00-A</span>}
             {!codeValue && <span className="text-warehouse-muted block mt-1">Waiting for entry...</span>}
           </div>
         </div>
@@ -279,7 +298,11 @@ export default function ManualInput() {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-teal" />
-            <span>Chiller Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1 py-0.5 bg-black/35 rounded">CR-001-01-1-A</code> (Chiller room 001 to 012)</span>
+            <span>Chiller Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1 py-0.5 bg-black/35 rounded">CR01-001-01-A</code> (Chiller room 001 to 012)</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-pink" />
+            <span>Frozen Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1 py-0.5 bg-black/35 rounded">FR01-001-01-A</code> (Frozen room 001 to 014)</span>
           </span>
         </p>
       </div>

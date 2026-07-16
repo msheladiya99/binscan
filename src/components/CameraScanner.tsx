@@ -484,8 +484,11 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
           <div className="bg-warehouse-bg border border-red-500/30 rounded-lg p-3 space-y-1">
             <p className="text-[9px] font-mono font-bold text-red-400/70 tracking-widest">OCR READ (raw text):</p>
             <p className="text-[11px] font-mono text-warehouse-muted break-all leading-relaxed">{lastOcrText}</p>
-            <p className="text-[9px] font-mono text-warehouse-muted/50 mt-1">
-              Expected format: <span className="text-accent-amber">F0-A02-013-03-B</span>
+            <p className="text-[9px] font-mono text-warehouse-muted/50 mt-1 flex flex-col gap-0.5">
+              <span>Expected formats:</span>
+              <span>· Standard: <span className="text-accent-amber">F0-A02-013-03-B</span></span>
+              <span>· Chiller: <span className="text-accent-teal">CR01-001-01-A</span></span>
+              <span>· Frozen: <span className="text-accent-pink">FR01-001-01-A</span></span>
             </p>
           </div>
         )}
