@@ -3,7 +3,7 @@ import { CameraOff, Play, Square, Target, Loader2, RefreshCw, CheckCircle2, XCir
 import { useCamera } from '../hooks/useCamera';
 import { useOCR } from '../hooks/useOCR';
 import { useAppStore } from '../store/useAppStore';
-import { extractWarehouseCodes } from '../utils/regex';
+import { validateWarehouseCode, extractWarehouseCodes } from '../utils/regex';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 
