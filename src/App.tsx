@@ -83,21 +83,21 @@ export default function App() {
                 className={`tab-btn ${activeTab === 'camera' ? 'active' : ''}`}
               >
                 <Camera size={16} className="tab-icon" />
-                <span>📷 SCAN CODE</span>
+                <span>SCAN</span>
               </button>
               <button
                 onClick={() => handleTabChange('manual')}
                 className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
               >
                 <Keyboard size={16} className="tab-icon" />
-                <span>⌨ MANUAL ENTRY</span>
+                <span>MANUAL</span>
               </button>
               <button
                 onClick={() => handleTabChange('history')}
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
               >
                 <History size={16} className="tab-icon" />
-                <span>📋 LOG HISTORY</span>
+                <span>HISTORY</span>
               </button>
             </div>
 

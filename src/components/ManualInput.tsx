@@ -169,7 +169,7 @@ export default function ManualInput() {
               <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">
                 {builderType === 'standard' ? 'Floor' : 'Zone'}
               </span>
-              <div className="dropdown-select font-mono bg-warehouse-panel/40 flex items-center justify-center border border-warehouse-border text-warehouse-muted py-2 px-3 rounded-lg text-sm select-none font-semibold">
+              <div className="dropdown-select font-mono bg-warehouse-panel/40 flex items-center justify-start border border-warehouse-border text-warehouse-muted py-2 px-3 rounded-lg text-sm select-none font-semibold">
                 {builderType === 'standard' ? 'F0' : builderType === 'chiller' ? 'CR01' : 'FR01'}
               </div>
             </div>
@@ -290,21 +290,30 @@ export default function ManualInput() {
           </div>
         </div>
         
-        <p className="text-warehouse-muted leading-relaxed font-sans border-t border-warehouse-border/50 pt-2.5 space-y-1.5 flex flex-col">
-          <span>Warehouse location codes must conform to one of:</span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-amber" />
-            <span>Standard Rack: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1 py-0.5 bg-black/35 rounded">F0-A02-013-03-B</code></span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-teal" />
-            <span>Chiller Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1 py-0.5 bg-black/35 rounded">CR01-001-01-A</code> (Chiller room 001 to 012)</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-pink" />
-            <span>Frozen Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1 py-0.5 bg-black/35 rounded">FR01-001-01-A</code> (Frozen room 001 to 014)</span>
-          </span>
-        </p>
+        <div className="text-warehouse-muted leading-relaxed font-sans border-t border-warehouse-border/50 pt-2.5 space-y-2 flex flex-col">
+          <span className="font-semibold text-warehouse-text/90">Warehouse location formats:</span>
+          
+          <div className="flex items-start gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-amber mt-1.5 shrink-0" />
+            <span className="text-[11px]">
+              Standard Rack: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">F0-A02-013-03-B</code>
+            </span>
+          </div>
+          
+          <div className="flex items-start gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-teal mt-1.5 shrink-0" />
+            <span className="text-[11px]">
+              Chiller Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">CR01-001-01-A</code> <span className="text-warehouse-muted/80">(Chiller 001 to 012)</span>
+            </span>
+          </div>
+          
+          <div className="flex items-start gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-pink mt-1.5 shrink-0" />
+            <span className="text-[11px]">
+              Frozen Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">FR01-001-01-A</code> <span className="text-warehouse-muted/80">(Frozen 001 to 014)</span>
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

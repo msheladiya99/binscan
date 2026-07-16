@@ -624,35 +624,110 @@ body {
 @media (max-width: 992px) {
   .app-main {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
   }
 }
 
 @media (max-width: 576px) {
   .app-container {
-    padding: 0 12px;
+    padding: 0 10px;
   }
-  
+
+  .app-main {
+    margin-top: 12px;
+    margin-bottom: 20px;
+    gap: 16px;
+  }
+
+  /* Compact header layout on mobile */
+  header {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    gap: 8px !important;
+  }
+
+  header h1 {
+    font-size: 18px !important;
+  }
+
+  header p {
+    font-size: 9px !important;
+  }
+
+  /* Compact status badges in header */
+  header .flex.flex-wrap {
+    gap: 6px !important;
+    justify-content: center;
+    width: 100%;
+  }
+
+  header .px-3.py-1\.5 {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+
+  /* Reduced card padding to maximize work area width */
+  .flex-grow.p-6 {
+    padding: 16px 12px !important;
+  }
+
+  /* Compact tab button headers */
+  .tab-btn {
+    padding: 12px 6px !important;
+    font-size: 11px !important;
+    letter-spacing: 0.2px !important;
+    gap: 4px !important;
+  }
+
+  .tab-icon {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* Compact viewfinder reticles */
   .viewfinder-container {
     aspect-ratio: 1 / 1;
   }
   
   .corner {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     border-width: 3px;
   }
   
-  .top-left, .top-right { top: 16px; }
-  .top-left { left: 16px; }
-  .top-right { right: 16px; }
+  .top-left, .top-right { top: 12px; }
+  .top-left { left: 12px; }
+  .top-right { right: 12px; }
   
-  .bottom-left, .bottom-right { bottom: 16px; }
-  .bottom-left { left: 16px; }
-  .bottom-right { right: 16px; }
+  .bottom-left, .bottom-right { bottom: 12px; }
+  .bottom-left { left: 12px; }
+  .bottom-right { right: 12px; }
   
   .btn-group {
     flex-direction: column;
+  }
+
+  /* Compact exporter buttons */
+  .grid.grid-cols-3.gap-2\.5 {
+    gap: 6px !important;
+  }
+
+  .grid.grid-cols-3.gap-2\.5 button {
+    padding: 8px 4px !important;
+    font-size: 10px !important;
+    gap: 4px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Dropdown selector grid: 2 columns on very small devices */
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* Make bin position cover full width of the row */
+  .col-span-3 {
+    grid-column: span 2 / span 2 !important;
   }
 }
 
