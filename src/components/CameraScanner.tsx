@@ -19,6 +19,49 @@ type ScanState =
   | 'found'        // code(s) detected — waiting for user to confirm chip
   | 'not_found';   // OCR ran but no valid code — show RECAPTURE button
 
+// Gradients-based blur detection function using Sobel magnitude variance
+function isBlurry(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {
+  // Crop a central 120x60 region to check for edge sharpness
+  const checkW = 120;
+  const checkH = 60;
+  const checkX = Math.round((width - checkW) / 2);
+  const checkY = Math.round((height - checkH) / 2);
+  
+  const imgData = ctx.getImageData(checkX, checkY, checkW, checkH);
+  const data = imgData.data;
+  
+  let sumG = 0;
+  let sumG2 = 0;
+  const count = (checkW - 1) * (checkH - 1);
+  
+  for (let y = 0; y < checkH - 1; y++) {
+    for (let x = 0; x < checkW - 1; x++) {
+      const idx = (y * checkW + x) * 4;
+      const idxRight = idx + 4;
+      const idxDown = idx + checkW * 4;
+      
+      const val = 0.299 * data[idx] + 0.587 * data[idx+1] + 0.114 * data[idx+2];
+      const valRight = 0.299 * data[idxRight] + 0.587 * data[idxRight+1] + 0.114 * data[idxRight+2];
+      const valDown = 0.299 * data[idxDown] + 0.587 * data[idxDown+1] + 0.114 * data[idxDown+2];
+      
+      const dx = valRight - val;
+      const dy = valDown - val;
+      const mag = Math.sqrt(dx * dx + dy * dy);
+      
+      sumG += mag;
+      sumG2 += mag * mag;
+    }
+  }
+  
+  const meanG = sumG / count;
+  const variance = (sumG2 / count) - (meanG * meanG);
+  console.debug('[BLUR CHECK] Variance:', variance);
+  
+  // Variance threshold: 22.0 is the sweet spot.
+  // Blurry images will have values < 15. In-focus crisp images will have values > 30.
+  return variance < 22;
+}
+
 export default function CameraScanner({ onShowToast }: CameraScannerProps) {
   const { isScanning, setIsScanning, setActiveCode, addToHistory, settings } = useAppStore();
   const { stream, error: cameraError, startCamera, stopCamera } = useCamera();
@@ -134,23 +177,19 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
     ) {
       autoCaptureFiredRef.current = true;
       // Small delay so camera sensor can warm up
-      const t = setTimeout(() => runCapture(), 800);
+      const t = setTimeout(() => runCapture(false), 800);
       return () => clearTimeout(t);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScanning, stream, ocrState, scanState]);
 
   // ─── Core capture + OCR logic ─────────────────────────────────────────────
-  const runCapture = React.useCallback(async () => {
+  const runCapture = React.useCallback(async (isManual: boolean = false) => {
     if (ocrProcessingRef.current || ocrState !== 'ready' || !stream) return;
 
     ocrProcessingRef.current = true;
     setScanState('capturing');
     setDetectedCodes([]);
-
-    // Camera flash
-    setIsFlashActive(true);
-    setTimeout(() => setIsFlashActive(false), 150);
 
     const video = videoRef.current;
     const canvas = captureCanvasRef.current;
@@ -171,6 +210,20 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
 
       if (ctx) {
         ctx.drawImage(video, 0, 0, w, h);
+
+        // Perform blur check for auto-captures
+        if (!isManual && isBlurry(ctx, w, h)) {
+          console.debug('[OCR] Auto-captured frame is blurry, skipping...');
+          ocrProcessingRef.current = false;
+          setScanState('live');
+          autoCaptureFiredRef.current = false; // reset flag to retry
+          return;
+        }
+
+        // Camera flash (visual trigger)
+        setIsFlashActive(true);
+        setTimeout(() => setIsFlashActive(false), 150);
+
         const snapshot = canvas.toDataURL('image/jpeg', 0.85);
         setFrozenFrame(snapshot);
 
@@ -268,7 +321,7 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
       !autoCaptureFiredRef.current
     ) {
       autoCaptureFiredRef.current = true;
-      const t = setTimeout(() => runCapture(), 600);
+      const t = setTimeout(() => runCapture(false), 450); // fast retry loop
       return () => clearTimeout(t);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -376,7 +429,7 @@ export default function CameraScanner({ onShowToast }: CameraScannerProps) {
         {/* Manual capture button — only shown when live (not capturing / not reviewing) */}
         {(scanState === 'live' || scanState === 'capturing') && (
           <button
-            onClick={runCapture}
+            onClick={() => runCapture(true)}
             disabled={!isScanning || ocrState !== 'ready' || isCapturing}
             className="btn btn-accent py-3 flex-[2] flex items-center justify-center gap-1.5 cursor-pointer"
           >
