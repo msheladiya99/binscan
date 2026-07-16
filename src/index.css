@@ -653,3 +653,34 @@ body {
     flex-direction: column;
   }
 }
+
+/* Dropdown select element styling */
+.dropdown-select {
+  appearance: none;
+  background-color: var(--color-warehouse-panel);
+  border: 1px solid var(--color-warehouse-border);
+  color: var(--color-warehouse-text);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  width: 100%;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  padding-right: 32px;
+  transition: all 0.15s ease;
+}
+
+.dropdown-select:focus {
+  border-color: var(--color-accent-amber);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.15);
+}
+
+.dark .dropdown-select {
+  background-color: #121824;
+}
+

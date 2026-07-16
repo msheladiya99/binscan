@@ -1,11 +1,21 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { AlertCircle, CheckCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, X, Keyboard, Layers } from 'lucide-react';
 import { validateWarehouseCode } from '../utils/regex';
 import { useAppStore } from '../store/useAppStore';
 
 export default function ManualInput() {
   const { setActiveCode, addToHistory } = useAppStore();
+  const [entryMode, setEntryMode] = React.useState<'builder' | 'keyboard'>('builder');
+  
+  // Dropdown builder states
+  const [builderType, setBuilderType] = React.useState<'standard' | 'chiller'>('standard');
+  const [selectedFloor, setSelectedFloor] = React.useState('F0');
+  const [selectedAisle, setSelectedAisle] = React.useState('A01');
+  const [selectedBay, setSelectedBay] = React.useState('001');
+  const [selectedLevel, setSelectedLevel] = React.useState('01');
+  const [selectedBin, setSelectedBin] = React.useState('A');
+
   const { register, watch, setValue } = useForm({
     defaultValues: {
       code: ''
@@ -16,6 +26,32 @@ export default function ManualInput() {
   const codeValue = watch('code');
   const [debouncedValue, setDebouncedValue] = React.useState('');
 
+  // Auto-switch defaults when builderType changes
+  React.useEffect(() => {
+    if (builderType === 'standard') {
+      setSelectedFloor('F0');
+      setSelectedAisle('A01');
+      setSelectedBay('001');
+      setSelectedLevel('01');
+    } else {
+      setSelectedFloor('CR');
+      setSelectedAisle('001');
+      setSelectedBay('01');
+      setSelectedLevel('1');
+    }
+    setSelectedBin('A');
+  }, [builderType]);
+
+  // Synchronize builder dropdowns with generated code string
+  React.useEffect(() => {
+    if (entryMode === 'builder') {
+      const code = builderType === 'standard'
+        ? `${selectedFloor}-${selectedAisle}-${selectedBay}-${selectedLevel}-${selectedBin}`
+        : `CR-${selectedAisle}-${selectedBay}-${selectedLevel}-${selectedBin}`;
+      setValue('code', code, { shouldValidate: true });
+    }
+  }, [entryMode, builderType, selectedFloor, selectedAisle, selectedBay, selectedLevel, selectedBin, setValue]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uppercased = e.target.value.toUpperCase().replace(/\s+/g, '');
     setValue('code', uppercased, { shouldValidate: true });
@@ -24,11 +60,11 @@ export default function ManualInput() {
   React.useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedValue(codeValue);
-    }, 300);
-
+    }, 200);
     return () => clearTimeout(handler);
   }, [codeValue]);
 
+  // Push valid codes to QR viewer and storage
   React.useEffect(() => {
     const trimmed = debouncedValue.trim();
     if (trimmed && validateWarehouseCode(trimmed)) {
@@ -42,32 +78,173 @@ export default function ManualInput() {
   const isValid = codeValue && validateWarehouseCode(codeValue);
   const isInvalid = codeValue && !validateWarehouseCode(codeValue);
 
+  // Generate selection lists
+  const standardAisles = Array.from({ length: 13 }, (_, i) => `A${String(i + 1).padStart(2, '0')}`);
+  const standardBays = Array.from({ length: 7 }, (_, i) => `00${i + 1}`);
+  const standardLevels = Array.from({ length: 7 }, (_, i) => `0${i + 1}`);
+  const binPositions = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+  const chillerAisles = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(3, '0'));
+  const chillerBays = Array.from({ length: 7 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const chillerLevels = Array.from({ length: 7 }, (_, i) => String(i + 1));
+
   return (
     <div className="flex flex-col gap-4 py-2">
+      {/* ── Mode selector tabs ── */}
+      <div className="flex bg-warehouse-panel/40 p-1.5 rounded-lg border border-warehouse-border/60">
+        <button
+          type="button"
+          onClick={() => setEntryMode('builder')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-mono text-xs font-bold cursor-pointer transition ${
+            entryMode === 'builder' ? 'bg-accent-amber text-warehouse-bg shadow-sm' : 'text-warehouse-muted hover:text-warehouse-text'
+          }`}
+        >
+          <Layers size={13} />
+          SELECT BUILDER
+        </button>
+        <button
+          type="button"
+          onClick={() => setEntryMode('keyboard')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-mono text-xs font-bold cursor-pointer transition ${
+            entryMode === 'keyboard' ? 'bg-accent-amber text-warehouse-bg shadow-sm' : 'text-warehouse-muted hover:text-warehouse-text'
+          }`}
+        >
+          <Keyboard size={13} />
+          KEYBOARD TYPE
+        </button>
+      </div>
+
+      {/* ── Option A: Builder Selector grid ── */}
+      {entryMode === 'builder' && (
+        <div className="bg-warehouse-panel/20 border border-warehouse-border rounded-xl p-4 space-y-4">
+          {/* Builder format switch */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setBuilderType('standard')}
+              className={`flex-1 py-1.5 rounded font-sans text-xs font-bold border transition ${
+                builderType === 'standard'
+                  ? 'bg-accent-amber/10 border-accent-amber text-accent-amber'
+                  : 'bg-transparent border-warehouse-border text-warehouse-muted hover:text-warehouse-text'
+              }`}
+            >
+              Standard Rack
+            </button>
+            <button
+              type="button"
+              onClick={() => setBuilderType('chiller')}
+              className={`flex-1 py-1.5 rounded font-sans text-xs font-bold border transition ${
+                builderType === 'chiller'
+                  ? 'bg-accent-teal/10 border-accent-teal text-accent-teal'
+                  : 'bg-transparent border-warehouse-border text-warehouse-muted hover:text-warehouse-text'
+              }`}
+            >
+              Chiller Room
+            </button>
+          </div>
+
+          {/* Select dropdowns grid */}
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+            {/* Floor/Zone prefix (locked) */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">
+                {builderType === 'standard' ? 'Floor' : 'Zone'}
+              </span>
+              <div className="dropdown-select font-mono bg-warehouse-panel/40 flex items-center justify-center border border-warehouse-border text-warehouse-muted py-2 px-3 rounded-lg text-sm select-none font-semibold">
+                {builderType === 'standard' ? 'F0' : 'CR'}
+              </div>
+            </div>
+
+            {/* Aisle */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">
+                {builderType === 'standard' ? 'Aisle' : 'Chiller'}
+              </span>
+              <select
+                value={selectedAisle}
+                onChange={(e) => setSelectedAisle(e.target.value)}
+                className="dropdown-select font-mono"
+              >
+                {builderType === 'standard'
+                  ? standardAisles.map(a => <option key={a} value={a}>{a}</option>)
+                  : chillerAisles.map(a => <option key={a} value={a}>{a}</option>)
+                }
+              </select>
+            </div>
+
+            {/* Bay */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Bay/Rack</span>
+              <select
+                value={selectedBay}
+                onChange={(e) => setSelectedBay(e.target.value)}
+                className="dropdown-select font-mono"
+              >
+                {builderType === 'standard'
+                  ? standardBays.map(b => <option key={b} value={b}>{b}</option>)
+                  : chillerBays.map(b => <option key={b} value={b}>{b}</option>)
+                }
+              </select>
+            </div>
+
+            {/* Level */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Level</span>
+              <select
+                value={selectedLevel}
+                onChange={(e) => setSelectedLevel(e.target.value)}
+                className="dropdown-select font-mono"
+              >
+                {builderType === 'standard'
+                  ? standardLevels.map(l => <option key={l} value={l}>{l}</option>)
+                  : chillerLevels.map(l => <option key={l} value={l}>{l}</option>)
+                }
+              </select>
+            </div>
+
+            {/* Bin */}
+            <div className="flex flex-col gap-1 col-span-3 md:col-span-1">
+              <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">Bin Pos</span>
+              <select
+                value={selectedBin}
+                onChange={(e) => setSelectedBin(e.target.value)}
+                className="dropdown-select font-mono"
+              >
+                {binPositions.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Option B: Keyboard TextInput ── */}
       <div className="flex flex-col gap-2 font-sans">
         <label htmlFor="manual-input-field" className="text-xs font-mono font-bold text-accent-amber tracking-wider">
-          LOCATION CODE INPUT
+          {entryMode === 'builder' ? 'GENERATED LOCATION CODE' : 'LOCATION CODE INPUT'}
         </label>
         <div className="relative flex items-center">
           <input
             id="manual-input-field"
             type="text"
-            placeholder="e.g. F0-A02-013-03-B"
+            placeholder="e.g. F0-A02-013-03-B or CR-001-01-1-A"
             {...register('code')}
             onChange={handleInputChange}
-            className={`w-full bg-warehouse-panel border-2 text-warehouse-text py-3.5 px-4 pr-12 rounded-lg font-mono text-base font-semibold outline-none transition ${
+            disabled={entryMode === 'builder'}
+            className={`w-full text-warehouse-text py-3.5 px-4 pr-12 rounded-lg font-mono text-base font-semibold outline-none transition ${
+              entryMode === 'builder' ? 'bg-warehouse-panel/40 border-warehouse-border border text-warehouse-muted/80' : 'bg-warehouse-panel border-2 text-warehouse-text'
+            } ${
               isValid ? 'border-accent-teal shadow-[0_0_8px_rgba(6,182,212,0.15)]' :
               isInvalid ? 'border-accent-red shadow-[0_0_8px_rgba(239,68,68,0.15)]' :
-              'border-warehouse-border focus:border-accent-amber focus:shadow-[0_0_8px_rgba(245,158,11,0.15)]'
+              entryMode === 'keyboard' ? 'border-warehouse-border focus:border-accent-amber focus:shadow-[0_0_8px_rgba(245,158,11,0.15)]' : ''
             }`}
             autoComplete="off"
             spellCheck="false"
           />
-          {codeValue && (
+          {codeValue && entryMode === 'keyboard' && (
             <button
               type="button"
               onClick={() => { setValue('code', ''); setActiveCode(''); }}
-              className="absolute right-4 text-warehouse-muted hover:text-warehouse-text transition"
+              className="absolute right-4 text-warehouse-muted hover:text-warehouse-text transition cursor-pointer"
               title="Clear text"
             >
               <X size={18} />
@@ -76,6 +253,7 @@ export default function ManualInput() {
         </div>
       </div>
 
+      {/* Validation card info */}
       <div className="bg-warehouse-panel border border-warehouse-border rounded-lg p-4 font-sans text-xs space-y-3">
         <div className="flex items-start gap-2.5">
           {isValid ? (
@@ -88,14 +266,21 @@ export default function ManualInput() {
           <div className="leading-relaxed">
             <span className="font-bold text-warehouse-text">Validation Format Status:</span>
             {isValid && <span className="text-accent-teal font-semibold font-mono block mt-1">MATCH FOUND: Valid Location Code</span>}
-            {isInvalid && <span className="text-accent-red font-semibold font-mono block mt-1">ERROR: Standard format is A0-B00-000-00-C</span>}
+            {isInvalid && <span className="text-accent-red font-semibold font-mono block mt-1">ERROR: Expected A0-B00-000-00-C or CR-000-00-0-A</span>}
             {!codeValue && <span className="text-warehouse-muted block mt-1">Waiting for entry...</span>}
           </div>
         </div>
         
-        <p className="text-warehouse-muted leading-relaxed font-sans border-t border-warehouse-border/50 pt-2.5">
-          Warehouse rack labeling codes must strictly conform to:
-          <code className="mono-code ml-1 font-mono text-[10px]">^[A-Z][0-9]-[A-Z][0-9]&#123;2&#125;-[0-9]&#123;3&#125;-[0-9]&#123;2&#125;-[A-Z]$</code>
+        <p className="text-warehouse-muted leading-relaxed font-sans border-t border-warehouse-border/50 pt-2.5 space-y-1.5 flex flex-col">
+          <span>Warehouse location codes must conform to one of:</span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-amber" />
+            <span>Standard Rack: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1 py-0.5 bg-black/35 rounded">F0-A02-013-03-B</code></span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-teal" />
+            <span>Chiller Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1 py-0.5 bg-black/35 rounded">CR-001-01-1-A</code> (Chiller room 001 to 012)</span>
+          </span>
         </p>
       </div>
     </div>
