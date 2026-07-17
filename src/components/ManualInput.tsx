@@ -184,9 +184,9 @@ export default function ManualInput() {
               </div>
             </div>
 
-            {/* Aisle */}
+            {/* Section */}
             <CustomSelect 
-              label={builderType === 'standard' ? 'Aisle' : builderType === 'chiller' ? 'Chiller' : builderType === 'frozen' ? 'FR Aisle' : 'FNV Aisle'}
+              label={builderType === 'standard' ? 'Section' : builderType === 'chiller' ? 'Chiller Sec' : builderType === 'frozen' ? 'FR Sec' : 'FNV Sec'}
               value={selectedAisle}
               onChange={setSelectedAisle}
               options={builderType === 'standard' ? standardAisles : builderType === 'chiller' ? chillerAisles : builderType === 'frozen' ? frozenAisles : fnvAisles}
@@ -270,7 +270,7 @@ export default function ManualInput() {
           <div className="leading-relaxed">
             <span className="font-bold text-warehouse-text">Validation Format Status:</span>
             {isValid && <span className="text-accent-teal font-semibold font-mono block mt-1">MATCH FOUND: Valid Location Code</span>}
-            {isInvalid && <span className="text-accent-red font-semibold font-mono block mt-1">ERROR: Expected F0-A00-000-00-C, CR01-000-00-A, or FR01-000-00-A</span>}
+            {isInvalid && <span className="text-accent-red font-semibold font-mono block mt-1">ERROR: Invalid format. Expected F0-XXX-000-00-X</span>}
             {!codeValue && <span className="text-warehouse-muted block mt-1">Waiting for entry...</span>}
           </div>
         </div>
@@ -281,21 +281,28 @@ export default function ManualInput() {
           <div className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-amber mt-1.5 shrink-0" />
             <span className="text-[11px]">
-              Standard Rack: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">F0-A02-013-03-B</code>
+              Standard: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">F0-A02-013-03-B</code>
             </span>
           </div>
           
           <div className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-teal mt-1.5 shrink-0" />
             <span className="text-[11px]">
-              Chiller Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">CR01-001-01-A</code> <span className="text-warehouse-muted/80">(Chiller 001 to 012)</span>
+              Chiller: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">F0-CR01-001-01-A</code> <span className="text-warehouse-muted/80">(Racks 001 to 012)</span>
             </span>
           </div>
           
           <div className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-pink mt-1.5 shrink-0" />
             <span className="text-[11px]">
-              Frozen Room: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">FR01-001-01-A</code> <span className="text-warehouse-muted/80">(Frozen 001 to 014)</span>
+              Frozen: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">F0-FR01-001-01-A</code> <span className="text-warehouse-muted/80">(Racks 001 to 014)</span>
+            </span>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+            <span className="text-[11px]">
+              FNV: <code className="mono-code font-mono text-[10px] text-warehouse-text px-1.5 py-0.5 bg-black/35 rounded">F0-FV01-001-01-A</code> <span className="text-warehouse-muted/80">(Racks 001 to 010)</span>
             </span>
           </div>
         </div>
