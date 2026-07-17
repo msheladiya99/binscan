@@ -39,7 +39,7 @@ export default function Header({
           <h1 className="text-xl font-extrabold tracking-wider text-warehouse-text">
             BIN<span className="text-accent-amber">SCAN</span>
           </h1>
-          <p className="text-xs text-warehouse-muted font-mono font-semibold">WAREHOUSE QR SYSTEM</p>
+          <p className="text-xs text-warehouse-muted font-mono font-semibold uppercase tracking-widest">meetonweb</p>
         </div>
       </div>
 

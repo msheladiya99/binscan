@@ -9,8 +9,7 @@ export default function ManualInput() {
   const [entryMode, setEntryMode] = React.useState<'builder' | 'keyboard'>('builder');
   
   // Dropdown builder states
-  const [builderType, setBuilderType] = React.useState<'standard' | 'chiller' | 'frozen'>('standard');
-  const [selectedFloor, setSelectedFloor] = React.useState('F0');
+  const [builderType, setBuilderType] = React.useState<'standard' | 'chiller' | 'frozen' | 'fnv'>('standard');
   const [selectedAisle, setSelectedAisle] = React.useState('A01');
   const [selectedBay, setSelectedBay] = React.useState('001');
   const [selectedLevel, setSelectedLevel] = React.useState('01');
@@ -29,33 +28,26 @@ export default function ManualInput() {
   // Auto-switch defaults when builderType changes
   React.useEffect(() => {
     if (builderType === 'standard') {
-      setSelectedFloor('F0');
       setSelectedAisle('A01');
-      setSelectedBay('001');
-      setSelectedLevel('01');
     } else if (builderType === 'chiller') {
-      setSelectedFloor('CR01');
-      setSelectedAisle('001');
-      setSelectedLevel('01');
+      setSelectedAisle('CR01');
+    } else if (builderType === 'frozen') {
+      setSelectedAisle('FR01');
     } else {
-      setSelectedFloor('FR01');
-      setSelectedAisle('001');
-      setSelectedLevel('01');
+      setSelectedAisle('FV01');
     }
+    setSelectedBay('001');
+    setSelectedLevel('01');
     setSelectedBin('A');
   }, [builderType]);
 
   // Synchronize builder dropdowns with generated code string
   React.useEffect(() => {
     if (entryMode === 'builder') {
-      const code = builderType === 'standard'
-        ? `${selectedFloor}-${selectedAisle}-${selectedBay}-${selectedLevel}-${selectedBin}`
-        : builderType === 'chiller'
-        ? `CR01-${selectedAisle}-${selectedLevel}-${selectedBin}`
-        : `FR01-${selectedAisle}-${selectedLevel}-${selectedBin}`;
+      const code = `F0-${selectedAisle}-${selectedBay}-${selectedLevel}-${selectedBin}`;
       setValue('code', code, { shouldValidate: true });
     }
-  }, [entryMode, builderType, selectedFloor, selectedAisle, selectedBay, selectedLevel, selectedBin, setValue]);
+  }, [entryMode, builderType, selectedAisle, selectedBay, selectedLevel, selectedBin, setValue]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uppercased = e.target.value.toUpperCase().replace(/\s+/g, '');
@@ -85,16 +77,23 @@ export default function ManualInput() {
 
   // Generate selection lists
   const standardAisles = Array.from({ length: 15 }, (_, i) => `A${String(i + 1).padStart(2, '0')}`);
-  const standardBays = Array.from({ length: 7 }, (_, i) => `00${i + 1}`);
+  const standardBays = Array.from({ length: 15 }, (_, i) => String(i + 1).padStart(3, '0'));
   const standardLevels = Array.from({ length: 7 }, (_, i) => `0${i + 1}`);
-  const binPositions = ['A', 'B', 'C'];
+  const binPositions = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
-  const chillerAisles = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(3, '0'));
-  const chillerLevels = Array.from({ length: 7 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const chillerBins = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const chillerAisles = ['CR01'];
+  const chillerBays = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(3, '0'));
+  const chillerLevels = Array.from({ length: 7 }, (_, i) => `0${i + 1}`);
+  const chillerBins = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
-  const frozenAisles = Array.from({ length: 14 }, (_, i) => String(i + 1).padStart(3, '0'));
-  const frozenLevels = Array.from({ length: 7 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const frozenAisles = ['FR01'];
+  const frozenBays = Array.from({ length: 14 }, (_, i) => String(i + 1).padStart(3, '0'));
+  const frozenLevels = Array.from({ length: 7 }, (_, i) => `0${i + 1}`);
+
+  const fnvAisles = ['FV01'];
+  const fnvBays = Array.from({ length: 10 }, (_, i) => String(i + 1).padStart(3, '0'));
+  const fnvLevels = Array.from({ length: 7 }, (_, i) => `0${i + 1}`);
+  const fnvBins = ['A', 'B', 'C'];
 
   return (
     <div className="flex flex-col gap-4 py-2">
@@ -136,7 +135,7 @@ export default function ManualInput() {
                   : 'bg-transparent border-warehouse-border text-warehouse-muted hover:text-warehouse-text'
               }`}
             >
-              Standard Rack
+              Standard
             </button>
             <button
               type="button"
@@ -147,7 +146,7 @@ export default function ManualInput() {
                   : 'bg-transparent border-warehouse-border text-warehouse-muted hover:text-warehouse-text'
               }`}
             >
-              Chiller Room
+              Chiller
             </button>
             <button
               type="button"
@@ -158,55 +157,64 @@ export default function ManualInput() {
                   : 'bg-transparent border-warehouse-border text-warehouse-muted hover:text-warehouse-text'
               }`}
             >
-              Frozen Room
+              Frozen
+            </button>
+            <button
+              type="button"
+              onClick={() => setBuilderType('fnv')}
+              className={`flex-1 py-1.5 rounded font-sans text-xs font-bold border transition ${
+                builderType === 'fnv'
+                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
+                  : 'bg-transparent border-warehouse-border text-warehouse-muted hover:text-warehouse-text'
+              }`}
+            >
+              FNV
             </button>
           </div>
 
           {/* Select dropdowns grid */}
-          <div className={`grid gap-3 ${builderType === 'standard' ? 'grid-cols-3 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'}`}>
+          <div className="grid gap-3 grid-cols-3 md:grid-cols-5">
             {/* Floor/Zone prefix (locked) */}
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">
                 {builderType === 'standard' ? 'Floor' : 'Zone'}
               </span>
               <div className="dropdown-select font-mono bg-warehouse-panel/40 flex items-center justify-start border border-warehouse-border text-warehouse-muted py-2 px-3 rounded-lg text-sm select-none font-semibold">
-                {builderType === 'standard' ? 'F0' : builderType === 'chiller' ? 'CR01' : 'FR01'}
+                F0
               </div>
             </div>
 
             {/* Aisle */}
             <CustomSelect 
-              label={builderType === 'standard' ? 'Aisle' : builderType === 'chiller' ? 'Chiller' : 'FR Aisle'}
+              label={builderType === 'standard' ? 'Aisle' : builderType === 'chiller' ? 'Chiller' : builderType === 'frozen' ? 'FR Aisle' : 'FNV Aisle'}
               value={selectedAisle}
               onChange={setSelectedAisle}
-              options={builderType === 'standard' ? standardAisles : builderType === 'chiller' ? chillerAisles : frozenAisles}
+              options={builderType === 'standard' ? standardAisles : builderType === 'chiller' ? chillerAisles : builderType === 'frozen' ? frozenAisles : fnvAisles}
             />
 
-            {/* Bay/Rack (not present in 4-segment Chiller/Frozen Room layouts) */}
-            {builderType === 'standard' && (
-              <CustomSelect 
-                label="Bay/Rack"
-                value={selectedBay}
-                onChange={setSelectedBay}
-                options={standardBays}
-              />
-            )}
+            {/* Bay/Rack */}
+            <CustomSelect 
+              label="Bay/Rack"
+              value={selectedBay}
+              onChange={setSelectedBay}
+              options={builderType === 'standard' ? standardBays : builderType === 'chiller' ? chillerBays : builderType === 'frozen' ? frozenBays : fnvBays}
+            />
 
             {/* Level */}
             <CustomSelect 
               label="Level"
               value={selectedLevel}
               onChange={setSelectedLevel}
-              options={builderType === 'standard' ? standardLevels : builderType === 'chiller' ? chillerLevels : frozenLevels}
+              options={builderType === 'standard' ? standardLevels : builderType === 'chiller' ? chillerLevels : builderType === 'frozen' ? frozenLevels : fnvLevels}
             />
 
             {/* Bin */}
-            <div className={`${builderType === 'standard' ? 'col-span-3 md:col-span-1' : 'col-span-2 md:col-span-1'}`}>
+            <div className="col-span-2 md:col-span-1">
               <CustomSelect 
                 label="Bin Pos"
                 value={selectedBin}
                 onChange={setSelectedBin}
-                options={builderType === 'chiller' ? chillerBins : binPositions}
+                options={builderType === 'chiller' ? chillerBins : builderType === 'fnv' ? fnvBins : binPositions}
               />
             </div>
           </div>
@@ -222,7 +230,7 @@ export default function ManualInput() {
           <input
             id="manual-input-field"
             type="text"
-            placeholder="e.g. F0-A02-013-03-B, CR01-001-01-A, or FR01-001-01-A"
+            placeholder="e.g. F0-A02-013-03-B, F0-CR01-001-01-A, or F0-FR01-001-01-A"
             {...register('code')}
             onChange={handleInputChange}
             disabled={entryMode === 'builder'}

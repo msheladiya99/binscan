@@ -725,6 +725,11 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
+  /* Make the 3rd exporter button span full width to fix the unbalanced gap */
+  .grid.grid-cols-3.gap-2\.5 > button:last-child {
+    grid-column: span 2 / span 2 !important;
+  }
+
   /* Make bin position cover full width of the row */
   .col-span-3 {
     grid-column: span 2 / span 2 !important;
