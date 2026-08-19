@@ -3,12 +3,13 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import CameraScanner from './components/CameraScanner';
 import ManualInput from './components/ManualInput';
+import CaseTempScanner from './components/CaseTempScanner';
 import HistoryList from './components/HistoryList';
 import QRCodeViewer from './components/QRCodeViewer';
 import SettingsDialog from './components/SettingsDialog';
 import { useAppStore } from './store/useAppStore';
 import { useOCR } from './hooks/useOCR';
-import { Camera, Keyboard, History } from 'lucide-react';
+import { Camera, Keyboard, History, Package } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function App() {
@@ -18,7 +19,7 @@ export default function App() {
     setIsScanning
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = React.useState<'camera' | 'manual' | 'history'>('manual');
+  const [activeTab, setActiveTab] = React.useState<'camera' | 'manual' | 'case-temp' | 'history'>('manual');
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState('');
   
@@ -28,7 +29,7 @@ export default function App() {
   const cameraStatusText = isScanning ? 'CAM: ON' : 'CAM: OFF';
 
   // Synchronize camera state on tab changes to conserve resources
-  const handleTabChange = (tab: 'camera' | 'manual' | 'history') => {
+  const handleTabChange = (tab: 'camera' | 'manual' | 'case-temp' | 'history') => {
     setActiveTab(tab);
     if (tab === 'camera') {
       setIsScanning(true);
@@ -93,6 +94,13 @@ export default function App() {
                 <span>MANUAL</span>
               </button>
               <button
+                onClick={() => handleTabChange('case-temp')}
+                className={`tab-btn ${activeTab === 'case-temp' ? 'active' : ''}`}
+              >
+                <Package size={16} className="tab-icon" />
+                <span>CASE / TEMP</span>
+              </button>
+              <button
                 onClick={() => handleTabChange('history')}
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
               >
@@ -117,6 +125,9 @@ export default function App() {
                   )}
                   {activeTab === 'manual' && (
                     <ManualInput />
+                  )}
+                  {activeTab === 'case-temp' && (
+                    <CaseTempScanner onShowToast={handleShowToast} />
                   )}
                   {activeTab === 'history' && (
                     <HistoryList onShowToast={handleShowToast} />

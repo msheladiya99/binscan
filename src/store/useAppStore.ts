@@ -12,11 +12,23 @@ export interface AppSettings {
   autoFocus: boolean;
 }
 
+export interface BatchCodeItem {
+  id: string;
+  code: string;
+  type: 'CASE' | 'TEMP';
+  qrData?: string;
+  detectedAt: number;
+}
+
 export interface HistoryItem {
   id: string;
   text: string;
   timestamp: string;
   isFavorite: boolean;
+  isBatch?: boolean;
+  batchCodes?: { code: string; type: 'CASE' | 'TEMP' }[];
+  caseCount?: number;
+  tempCount?: number;
 }
 
 interface AppState {
@@ -26,10 +38,23 @@ interface AppState {
   activeCode: string;
   isScanning: boolean;
   
+  // Batch State
+  batchItems: BatchCodeItem[];
+  ignoredBatchCodes: string[];
+  autoGenerateBatchQr: boolean;
+  
   toggleTheme: () => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
   setActiveCode: (code: string) => void;
   setIsScanning: (scanning: boolean) => void;
+  
+  // Batch Actions
+  addBatchCodes: (codes: { code: string; type: 'CASE' | 'TEMP' }[]) => boolean;
+  addIgnoredBatchCodes: (codes: string[]) => void;
+  deleteBatchItem: (id: string) => void;
+  clearBatchItems: () => void;
+  setAutoGenerateBatchQr: (auto: boolean) => void;
+  addBatchToHistory: (items: BatchCodeItem[]) => void;
   
   // History Actions
   addToHistory: (code: string) => void;
@@ -56,16 +81,83 @@ export const useAppStore = create<AppState>()(
       settings: DEFAULT_SETTINGS,
       history: [],
       activeCode: '',
-      isScanning: false, // camera stream off on initial load
+      isScanning: false,
+      
+      batchItems: [],
+      ignoredBatchCodes: [],
+      autoGenerateBatchQr: true,
       
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
       updateSettings: (newSettings) => set((state) => ({ settings: { ...state.settings, ...newSettings } })),
       setActiveCode: (code) => set({ activeCode: code }),
       setIsScanning: (scanning) => set({ isScanning: scanning }),
       
+      setAutoGenerateBatchQr: (auto) => set({ autoGenerateBatchQr: auto }),
+      
+      addBatchCodes: (codes) => {
+        let addedNew = false;
+        set((state) => {
+          const existingCodes = new Set(state.batchItems.map(item => item.code));
+          const newItems: BatchCodeItem[] = [];
+
+          for (const item of codes) {
+            const cleanCode = item.code.trim().toUpperCase();
+            if (!existingCodes.has(cleanCode)) {
+              existingCodes.add(cleanCode);
+              addedNew = true;
+              newItems.push({
+                id: typeof crypto !== 'undefined' && crypto.randomUUID 
+                  ? crypto.randomUUID() 
+                  : Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+                code: cleanCode,
+                type: item.type,
+                detectedAt: Date.now()
+              });
+            }
+          }
+
+          if (!addedNew) return state;
+          return { batchItems: [...state.batchItems, ...newItems] };
+        });
+        return addedNew;
+      },
+
+      addIgnoredBatchCodes: (codes) => set((state) => {
+        const existing = new Set(state.ignoredBatchCodes);
+        codes.forEach(c => existing.add(c));
+        return { ignoredBatchCodes: Array.from(existing) };
+      }),
+
+      deleteBatchItem: (id) => set((state) => ({
+        batchItems: state.batchItems.filter(item => item.id !== id)
+      })),
+
+      clearBatchItems: () => set({ batchItems: [], ignoredBatchCodes: [] }),
+
+      addBatchToHistory: (items) => set((state) => {
+        if (items.length === 0) return state;
+        const caseCount = items.filter(i => i.type === 'CASE').length;
+        const tempCount = items.filter(i => i.type === 'TEMP').length;
+        
+        const newItem: HistoryItem = {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID 
+            ? crypto.randomUUID() 
+            : Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+          text: `Batch (${items.length} codes: ${caseCount} CASE, ${tempCount} TEMP)`,
+          timestamp: new Date().toISOString(),
+          isFavorite: false,
+          isBatch: true,
+          batchCodes: items.map(i => ({ code: i.code, type: i.type })),
+          caseCount,
+          tempCount
+        };
+
+        const updated = [newItem, ...state.history].slice(0, 100);
+        return { history: updated };
+      }),
+      
       addToHistory: (code) => set((state) => {
         const clean = code.trim().toUpperCase();
-        // Check if already exists in history to push to top
         const filtered = state.history.filter(item => item.text !== clean);
         
         const newItem: HistoryItem = {
@@ -77,7 +169,6 @@ export const useAppStore = create<AppState>()(
           isFavorite: false
         };
         
-        // Maintain up to 100 history items
         const updated = [newItem, ...filtered].slice(0, 100);
         return { history: updated };
       }),
@@ -99,8 +190,11 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         theme: state.theme,
         settings: state.settings,
-        history: state.history
+        history: state.history,
+        batchItems: state.batchItems,
+        autoGenerateBatchQr: state.autoGenerateBatchQr
       })
     }
   )
 );
+
