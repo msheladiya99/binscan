@@ -29,11 +29,7 @@ export default function CaseTempScanner({ onShowToast }: CaseTempScannerProps) {
 
   const { stream, error: cameraError, startCamera, stopCamera } = useCamera();
   const { processFrame } = useBatchOCR();
-  const { 
-    batchItems, 
-    autoGenerateBatchQr, 
-    setAutoGenerateBatchQr 
-  } = useAppStore();
+  const { batchItems } = useAppStore();
 
   const caseCount = batchItems.filter(i => i.type === 'CASE').length;
   const tempCount = batchItems.filter(i => i.type === 'TEMP').length;
@@ -188,11 +184,11 @@ export default function CaseTempScanner({ onShowToast }: CaseTempScannerProps) {
           <div className="bg-warehouse-panel border border-warehouse-border rounded-xl p-4 flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               {/* Scan buttons */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full">
                 {!isScanningActive ? (
                   <button
                     onClick={handleStartScan}
-                    className="btn btn-primary py-2 px-4 text-xs font-bold font-mono tracking-wider flex items-center gap-2"
+                    className="btn btn-primary py-2.5 px-4 text-xs font-bold font-mono tracking-wider flex items-center justify-center gap-2 w-full"
                   >
                     <Play size={14} />
                     <span>START BATCH SCAN</span>
@@ -200,25 +196,12 @@ export default function CaseTempScanner({ onShowToast }: CaseTempScannerProps) {
                 ) : (
                   <button
                     onClick={handleStopScan}
-                    className="btn btn-danger py-2 px-4 text-xs font-bold font-mono tracking-wider flex items-center gap-2"
+                    className="btn btn-danger py-2.5 px-4 text-xs font-bold font-mono tracking-wider flex items-center justify-center gap-2 w-full"
                   >
                     <Square size={14} />
                     <span>STOP SCAN</span>
                   </button>
                 )}
-              </div>
-
-              {/* Auto Generate Toggle */}
-              <div className="flex items-center gap-2 text-xs font-mono text-warehouse-muted">
-                <label className="switch-control">
-                  <input
-                    type="checkbox"
-                    checked={autoGenerateBatchQr}
-                    onChange={(e) => setAutoGenerateBatchQr(e.target.checked)}
-                  />
-                  <span className="switch-slider"></span>
-                </label>
-                <span>AUTO GENERATE QR</span>
               </div>
             </div>
 
