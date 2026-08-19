@@ -62,6 +62,16 @@ export default function QRCodeViewer({ onShowToast }: QRCodeViewerProps) {
     }
   };
 
+  // Determine code type (CASE, TEMP, PERM, RACK)
+  const codeType = React.useMemo(() => {
+    if (!activeCode) return null;
+    if (activeCode.includes('_CASE_')) return 'CASE';
+    if (activeCode.includes('_TEMP_')) return 'TEMP';
+    if (activeCode.includes('_PERM_')) return 'PERM';
+    if (activeCode.startsWith('F0-')) return 'RACK';
+    return null;
+  }, [activeCode]);
+
   // Determine checksum value
   const checksum = React.useMemo(() => {
     if (!activeCode) return 'AWAITING';
@@ -98,7 +108,16 @@ export default function QRCodeViewer({ onShowToast }: QRCodeViewerProps) {
             
             {/* Card Header details */}
             <div className="flex justify-between items-center border-b-2 border-[#0a0a0a] pb-2 text-[10px] font-extrabold">
-              <span>BINSCAN SYSTEMS</span>
+              <div className="flex items-center gap-1.5">
+                <span>BINSCAN SYSTEMS</span>
+                {codeType && (
+                  <span className={`px-1.5 py-0.5 text-[8px] font-mono text-white rounded font-bold uppercase ${
+                    codeType === 'CASE' ? 'bg-amber-600' : codeType === 'TEMP' ? 'bg-cyan-600' : 'bg-slate-800'
+                  }`}>
+                    {codeType}
+                  </span>
+                )}
+              </div>
               <span>ID: {checksum}</span>
             </div>
 

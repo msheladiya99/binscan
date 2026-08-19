@@ -32,7 +32,9 @@ export default function BatchCodeList({ onShowToast }: BatchCodeListProps) {
     deleteBatchItem, 
     clearBatchItems, 
     addBatchToHistory,
-    ignoredBatchCodes
+    ignoredBatchCodes,
+    activeCode,
+    setActiveCode
   } = useAppStore();
 
   const [filter, setFilter] = useState<'ALL' | 'CASE' | 'TEMP'>('ALL');
@@ -49,23 +51,23 @@ export default function BatchCodeList({ onShowToast }: BatchCodeListProps) {
   // Map of generated QR Data URLs for fast rendering
   const [qrMap, setQrMap] = useState<Record<string, string>>({});
 
-  // Generate QR data URLs asynchronously
+  // Generate QR data URLs asynchronously for both CASE and TEMP items
   useEffect(() => {
     let isMounted = true;
 
     async function loadQRs() {
-      const newEntries: Record<string, string> = {};
+      const missingItems = batchItems.filter(item => !qrMap[item.id]);
+      if (missingItems.length === 0) return;
 
-      for (const item of batchItems) {
-        if (!qrMap[item.id]) {
-          try {
-            const url = await generateQRDataUrl(item.code);
-            if (isMounted) {
-              newEntries[item.id] = url;
-            }
-          } catch (err) {
-            console.error("Failed QR generation for item:", item.code, err);
+      const newEntries: Record<string, string> = {};
+      for (const item of missingItems) {
+        try {
+          const url = await generateQRDataUrl(item.code);
+          if (isMounted) {
+            newEntries[item.id] = url;
           }
+        } catch (err) {
+          console.error("Failed QR generation for item:", item.code, err);
         }
       }
 
@@ -74,10 +76,13 @@ export default function BatchCodeList({ onShowToast }: BatchCodeListProps) {
       }
     }
 
-    if (batchItems.length > 0) {
-      loadQRs();
-    }
-  }, [batchItems, qrMap]);
+    loadQRs();
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchItems]);
 
   // Counts
   const totalCount = batchItems.length;
@@ -323,22 +328,40 @@ export default function BatchCodeList({ onShowToast }: BatchCodeListProps) {
           {filteredItems.map((item) => {
             const qrUrl = qrMap[item.id];
             const isCase = item.type === 'CASE';
+            const isActive = activeCode === item.code;
 
             return (
               <div 
                 key={item.id}
-                className="bg-warehouse-card border border-warehouse-border hover:border-warehouse-border-focus rounded-xl p-4 flex flex-col justify-between transition gap-3"
+                onClick={() => setActiveCode(item.code)}
+                className={`bg-warehouse-card border rounded-xl p-4 flex flex-col justify-between transition gap-3 cursor-pointer ${
+                  isActive 
+                    ? isCase
+                      ? 'border-accent-amber shadow-[0_0_15px_rgba(245,158,11,0.3)] ring-1 ring-accent-amber'
+                      : 'border-accent-teal shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-accent-teal'
+                    : 'border-warehouse-border hover:border-warehouse-border-focus'
+                }`}
               >
                 {/* Header */}
                 <div className="flex justify-between items-center">
-                  <span className={`px-2.5 py-0.5 rounded text-xs font-mono font-extrabold uppercase border ${
-                    isCase ? 'bg-amber-500/10 text-accent-amber border-amber-500/30' : 'bg-cyan-500/10 text-accent-teal border-cyan-500/30'
-                  }`}>
-                    {item.type}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded text-xs font-mono font-extrabold uppercase border ${
+                      isCase ? 'bg-amber-500/10 text-accent-amber border-amber-500/30' : 'bg-cyan-500/10 text-accent-teal border-cyan-500/30'
+                    }`}>
+                      {item.type}
+                    </span>
+                    {isActive && (
+                      <span className="text-[10px] font-mono font-bold text-accent-amber bg-warehouse-panel px-1.5 py-0.5 rounded border border-accent-amber/40">
+                        ACTIVE IN VIEWER
+                      </span>
+                    )}
+                  </div>
 
                   <button
-                    onClick={() => deleteBatchItem(item.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteBatchItem(item.id);
+                    }}
                     className="text-warehouse-muted hover:text-accent-red transition p-1"
                     title="Delete item"
                   >
@@ -361,7 +384,7 @@ export default function BatchCodeList({ onShowToast }: BatchCodeListProps) {
                 </div>
 
                 {/* Card Action Buttons */}
-                <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-warehouse-border">
+                <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-warehouse-border" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => handleDownloadSingle(item.code)}
                     className="py-1.5 px-2 bg-warehouse-panel hover:bg-warehouse-border text-warehouse-text rounded text-xs font-mono font-bold flex items-center justify-center gap-1 transition"
@@ -401,62 +424,72 @@ export default function BatchCodeList({ onShowToast }: BatchCodeListProps) {
           </div>
 
           <div className="max-h-[500px] overflow-y-auto divide-y divide-warehouse-border">
-            {filteredItems.map((item, idx) => (
-              <div 
-                key={item.id}
-                className="px-4 py-2.5 text-xs font-mono grid grid-cols-12 gap-2 items-center hover:bg-warehouse-panel/50 transition"
-              >
-                <span className="col-span-1 text-warehouse-muted font-bold">
-                  {String(idx + 1).padStart(2, '0')}
-                </span>
+            {filteredItems.map((item, idx) => {
+              const isActive = activeCode === item.code;
 
-                <span className="col-span-5 font-bold text-warehouse-text tracking-wide truncate">
-                  {item.code}
-                </span>
-
-                <span className="col-span-2">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                    item.type === 'CASE' ? 'bg-amber-500/10 text-accent-amber border border-amber-500/30' : 'bg-cyan-500/10 text-accent-teal border border-cyan-500/30'
-                  }`}>
-                    {item.type}
+              return (
+                <div 
+                  key={item.id}
+                  onClick={() => setActiveCode(item.code)}
+                  className={`px-4 py-2.5 text-xs font-mono grid grid-cols-12 gap-2 items-center cursor-pointer transition ${
+                    isActive ? 'bg-warehouse-panel border-l-4 border-l-accent-amber' : 'hover:bg-warehouse-panel/50'
+                  }`}
+                >
+                  <span className="col-span-1 text-warehouse-muted font-bold">
+                    {String(idx + 1).padStart(2, '0')}
                   </span>
-                </span>
 
-                <div className="col-span-4 flex items-center justify-end gap-1.5">
-                  <button
-                    onClick={() => handleDownloadSingle(item.code)}
-                    className="p-1.5 hover:bg-warehouse-panel rounded text-warehouse-muted hover:text-accent-amber transition"
-                    title="Download PNG"
-                  >
-                    <Download size={13} />
-                  </button>
+                  <span className="col-span-5 font-bold text-warehouse-text tracking-wide truncate flex items-center gap-2">
+                    <span>{item.code}</span>
+                    {isActive && (
+                      <span className="text-[9px] text-accent-amber font-mono font-bold">● ACTIVE</span>
+                    )}
+                  </span>
 
-                  <button
-                    onClick={() => handleCopyCode(item.id, item.code)}
-                    className="p-1.5 hover:bg-warehouse-panel rounded text-warehouse-muted hover:text-accent-teal transition"
-                    title="Copy code"
-                  >
-                    {copiedId === item.id ? <Check size={13} className="text-accent-teal" /> : <Copy size={13} />}
-                  </button>
+                  <span className="col-span-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                      item.type === 'CASE' ? 'bg-amber-500/10 text-accent-amber border border-amber-500/30' : 'bg-cyan-500/10 text-accent-teal border border-cyan-500/30'
+                    }`}>
+                      {item.type}
+                    </span>
+                  </span>
 
-                  <button
-                    onClick={() => handlePrintSingle(item)}
-                    className="p-1.5 hover:bg-warehouse-panel rounded text-warehouse-muted hover:text-warehouse-text transition"
-                    title="Print label"
-                  >
-                    <Printer size={13} />
-                  </button>
+                  <div className="col-span-4 flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => handleDownloadSingle(item.code)}
+                      className="p-1.5 hover:bg-warehouse-panel rounded text-warehouse-muted hover:text-accent-amber transition"
+                      title="Download PNG"
+                    >
+                      <Download size={13} />
+                    </button>
 
-                  <button
-                    onClick={() => deleteBatchItem(item.id)}
-                    className="p-1.5 hover:bg-warehouse-panel rounded text-warehouse-muted hover:text-accent-red transition"
-                    title="Delete item"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                    <button
+                      onClick={() => handleCopyCode(item.id, item.code)}
+                      className="p-1.5 hover:bg-warehouse-panel rounded text-warehouse-muted hover:text-accent-teal transition"
+                      title="Copy code"
+                    >
+                      {copiedId === item.id ? <Check size={13} className="text-accent-teal" /> : <Copy size={13} />}
+                    </button>
+
+                    <button
+                      onClick={() => handlePrintSingle(item)}
+                      className="p-1.5 hover:bg-warehouse-panel rounded text-warehouse-muted hover:text-warehouse-text transition"
+                      title="Print label"
+                    >
+                      <Printer size={13} />
+                    </button>
+
+                    <button
+                      onClick={() => deleteBatchItem(item.id)}
+                      className="p-1.5 hover:bg-warehouse-panel rounded text-warehouse-muted hover:text-accent-red transition"
+                      title="Delete item"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -96,6 +96,7 @@ export const useAppStore = create<AppState>()(
       
       addBatchCodes: (codes) => {
         let addedNew = false;
+        let lastAddedCode = '';
         set((state) => {
           const existingCodes = new Set(state.batchItems.map(item => item.code));
           const newItems: BatchCodeItem[] = [];
@@ -105,6 +106,7 @@ export const useAppStore = create<AppState>()(
             if (!existingCodes.has(cleanCode)) {
               existingCodes.add(cleanCode);
               addedNew = true;
+              lastAddedCode = cleanCode;
               newItems.push({
                 id: typeof crypto !== 'undefined' && crypto.randomUUID 
                   ? crypto.randomUUID() 
@@ -117,7 +119,10 @@ export const useAppStore = create<AppState>()(
           }
 
           if (!addedNew) return state;
-          return { batchItems: [...state.batchItems, ...newItems] };
+          return { 
+            batchItems: [...state.batchItems, ...newItems],
+            activeCode: lastAddedCode || state.activeCode
+          };
         });
         return addedNew;
       },
