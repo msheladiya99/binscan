@@ -173,7 +173,7 @@ export default function ManualInput() {
           </div>
 
           {/* Select dropdowns grid */}
-          <div className="grid gap-3 grid-cols-3 md:grid-cols-5">
+          <div className="grid gap-3 grid-cols-3 md:grid-cols-5 builder-selector-grid">
             {/* Floor/Zone prefix (locked) */}
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-mono font-bold text-warehouse-muted tracking-wider uppercase">

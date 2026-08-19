@@ -99,19 +99,20 @@ body {
   background: none;
   border: none;
   color: var(--color-warehouse-muted);
-  padding: 16px 20px;
+  padding: 16px 14px;
   font-family: var(--font-sans);
   font-weight: 700;
   font-size: 13px;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.2s ease;
   border-bottom: 3px solid transparent;
   outline: none;
+  white-space: nowrap;
 }
 
 .tab-btn:hover {
@@ -671,12 +672,24 @@ body {
     padding: 16px 12px !important;
   }
 
+  .tab-headers {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .tab-headers::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Compact tab button headers */
   .tab-btn {
-    padding: 12px 6px !important;
-    font-size: 11px !important;
-    letter-spacing: 0.2px !important;
-    gap: 4px !important;
+    padding: 10px 4px !important;
+    font-size: 10px !important;
+    letter-spacing: 0px !important;
+    gap: 3px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0;
   }
 
   .tab-icon {
@@ -721,13 +734,8 @@ body {
 
 @media (max-width: 480px) {
   /* Dropdown selector grid: 2 columns on very small devices */
-  .grid-cols-3 {
+  .builder-selector-grid.grid-cols-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  /* Make the 3rd exporter button span full width to fix the unbalanced gap */
-  .grid.grid-cols-3.gap-2\.5 > button:last-child {
-    grid-column: span 2 / span 2 !important;
   }
 
   /* Make bin position cover full width of the row */

@@ -83,29 +83,29 @@ export default function App() {
                 onClick={() => handleTabChange('camera')}
                 className={`tab-btn ${activeTab === 'camera' ? 'active' : ''}`}
               >
-                <Camera size={16} className="tab-icon" />
-                <span>SCAN</span>
+                <Camera size={16} className="tab-icon shrink-0" />
+                <span className="whitespace-nowrap">SCAN</span>
               </button>
               <button
                 onClick={() => handleTabChange('manual')}
                 className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
               >
-                <Keyboard size={16} className="tab-icon" />
-                <span>MANUAL</span>
+                <Keyboard size={16} className="tab-icon shrink-0" />
+                <span className="whitespace-nowrap">MANUAL</span>
               </button>
               <button
                 onClick={() => handleTabChange('case-temp')}
                 className={`tab-btn ${activeTab === 'case-temp' ? 'active' : ''}`}
               >
-                <Package size={16} className="tab-icon" />
-                <span>CASE / TEMP</span>
+                <Package size={16} className="tab-icon shrink-0" />
+                <span className="whitespace-nowrap">CASE / TEMP</span>
               </button>
               <button
                 onClick={() => handleTabChange('history')}
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
               >
-                <History size={16} className="tab-icon" />
-                <span>HISTORY</span>
+                <History size={16} className="tab-icon shrink-0" />
+                <span className="whitespace-nowrap">HISTORY</span>
               </button>
             </div>
 

@@ -205,19 +205,19 @@ export default function CaseTempScanner({ onShowToast }: CaseTempScannerProps) {
               </div>
             </div>
 
-            {/* Real-time stats bar */}
-            <div className="grid grid-cols-3 gap-2 bg-warehouse-card border border-warehouse-border rounded-lg p-3 text-center font-mono">
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-warehouse-muted uppercase">TOTAL DETECTED</span>
-                <span className="text-base font-extrabold text-warehouse-text">{totalCount}</span>
+            {/* Real-time stats bar (1 row with 3 boxes) */}
+            <div className="grid grid-cols-3 gap-1 bg-warehouse-card border border-warehouse-border rounded-lg p-2.5 text-center font-mono">
+              <div className="flex flex-col items-center justify-center p-1">
+                <span className="text-[9px] sm:text-[10px] text-warehouse-muted uppercase font-bold tracking-tight whitespace-nowrap">TOTAL DETECTED</span>
+                <span className="text-sm sm:text-base font-extrabold text-warehouse-text mt-0.5">{totalCount}</span>
               </div>
-              <div className="flex flex-col items-center border-x border-warehouse-border">
-                <span className="text-[10px] text-accent-amber uppercase">CASE CODES</span>
-                <span className="text-base font-extrabold text-accent-amber">{caseCount}</span>
+              <div className="flex flex-col items-center justify-center p-1 border-x border-warehouse-border">
+                <span className="text-[9px] sm:text-[10px] text-accent-amber uppercase font-bold tracking-tight whitespace-nowrap">CASE CODES</span>
+                <span className="text-sm sm:text-base font-extrabold text-accent-amber mt-0.5">{caseCount}</span>
               </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-accent-teal uppercase">TEMP CODES</span>
-                <span className="text-base font-extrabold text-accent-teal">{tempCount}</span>
+              <div className="flex flex-col items-center justify-center p-1">
+                <span className="text-[9px] sm:text-[10px] text-accent-teal uppercase font-bold tracking-tight whitespace-nowrap">TEMP CODES</span>
+                <span className="text-sm sm:text-base font-extrabold text-accent-teal mt-0.5">{tempCount}</span>
               </div>
             </div>
           </div>

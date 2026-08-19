@@ -156,31 +156,31 @@ export default function QRCodeViewer({ onShowToast }: QRCodeViewerProps) {
         )}
       </div>
 
-      {/* Exporter Buttons */}
+      {/* Exporter Buttons (1 single line) */}
       <div className="grid grid-cols-3 gap-2.5">
         <button 
           onClick={handleDownload} 
           disabled={!activeCode}
-          className="btn btn-primary py-3 px-2 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+          className="btn btn-primary py-3 px-2 text-xs flex items-center justify-center gap-1 cursor-pointer"
         >
-          <Download size={14} />
-          <span>DOWNLOAD</span>
+          <Download size={14} className="shrink-0" />
+          <span className="whitespace-nowrap">DOWNLOAD</span>
         </button>
         <button 
           onClick={handleCopyText} 
           disabled={!activeCode}
-          className="btn btn-outline py-3 px-2 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+          className="btn btn-outline py-3 px-2 text-xs flex items-center justify-center gap-1 cursor-pointer"
         >
-          <Copy size={14} />
-          <span>COPY</span>
+          <Copy size={14} className="shrink-0" />
+          <span className="whitespace-nowrap">COPY</span>
         </button>
         <button 
           onClick={handlePrint} 
           disabled={!activeCode}
-          className="btn btn-outline py-3 px-2 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+          className="btn btn-outline py-3 px-2 text-xs flex items-center justify-center gap-1 cursor-pointer"
         >
-          <Printer size={14} />
-          <span>PRINT</span>
+          <Printer size={14} className="shrink-0" />
+          <span className="whitespace-nowrap">PRINT</span>
         </button>
       </div>
 
