@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { normalizeCaseTempCode } from '../utils/regex';
 
 export interface AppSettings {
   qrSize: 200 | 300 | 500 | 800;
@@ -98,20 +99,23 @@ export const useAppStore = create<AppState>()(
         let addedNew = false;
         let lastAddedCode = '';
         set((state) => {
-          const existingCodes = new Set(state.batchItems.map(item => item.code));
+          // Normalize existing codes in set to prevent duplicate entries
+          const existingCodes = new Set(
+            state.batchItems.map(item => normalizeCaseTempCode(item.code) || item.code.trim().toUpperCase())
+          );
           const newItems: BatchCodeItem[] = [];
 
           for (const item of codes) {
-            const cleanCode = item.code.trim().toUpperCase();
-            if (!existingCodes.has(cleanCode)) {
-              existingCodes.add(cleanCode);
+            const canonicalCode = normalizeCaseTempCode(item.code) || item.code.trim().toUpperCase();
+            if (canonicalCode && !existingCodes.has(canonicalCode)) {
+              existingCodes.add(canonicalCode);
               addedNew = true;
-              lastAddedCode = cleanCode;
+              lastAddedCode = canonicalCode;
               newItems.push({
                 id: typeof crypto !== 'undefined' && crypto.randomUUID 
                   ? crypto.randomUUID() 
                   : Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
-                code: cleanCode,
+                code: canonicalCode,
                 type: item.type,
                 detectedAt: Date.now()
               });
@@ -119,8 +123,20 @@ export const useAppStore = create<AppState>()(
           }
 
           if (!addedNew) return state;
+
+          // Deduplicate entire array as a safety guarantee
+          const seen = new Set<string>();
+          const dedupedBatchItems: BatchCodeItem[] = [];
+          for (const item of [...state.batchItems, ...newItems]) {
+            const norm = normalizeCaseTempCode(item.code) || item.code.trim().toUpperCase();
+            if (norm && !seen.has(norm)) {
+              seen.add(norm);
+              dedupedBatchItems.push({ ...item, code: norm });
+            }
+          }
+
           return { 
-            batchItems: [...state.batchItems, ...newItems],
+            batchItems: dedupedBatchItems,
             activeCode: lastAddedCode || state.activeCode
           };
         });
@@ -141,18 +157,29 @@ export const useAppStore = create<AppState>()(
 
       addBatchToHistory: (items) => set((state) => {
         if (items.length === 0) return state;
-        const caseCount = items.filter(i => i.type === 'CASE').length;
-        const tempCount = items.filter(i => i.type === 'TEMP').length;
+
+        // Deduplicate before saving to history
+        const uniqueMap = new Map<string, 'CASE' | 'TEMP'>();
+        for (const item of items) {
+          const canonical = normalizeCaseTempCode(item.code) || item.code.trim().toUpperCase();
+          if (canonical) {
+            uniqueMap.set(canonical, item.type);
+          }
+        }
+        const uniqueItems = Array.from(uniqueMap.entries()).map(([code, type]) => ({ code, type }));
+
+        const caseCount = uniqueItems.filter(i => i.type === 'CASE').length;
+        const tempCount = uniqueItems.filter(i => i.type === 'TEMP').length;
         
         const newItem: HistoryItem = {
           id: typeof crypto !== 'undefined' && crypto.randomUUID 
             ? crypto.randomUUID() 
             : Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
-          text: `Batch (${items.length} codes: ${caseCount} CASE, ${tempCount} TEMP)`,
+          text: `Batch (${uniqueItems.length} codes: ${caseCount} CASE, ${tempCount} TEMP)`,
           timestamp: new Date().toISOString(),
           isFavorite: false,
           isBatch: true,
-          batchCodes: items.map(i => ({ code: i.code, type: i.type })),
+          batchCodes: uniqueItems,
           caseCount,
           tempCount
         };
