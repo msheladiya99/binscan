@@ -83,8 +83,15 @@ export function useBatchOCR() {
   const workerRef = useRef<any>(null);
   const isProcessingRef = useRef<boolean>(false);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scannedCodesRef = useRef<Set<string>>(new Set());
 
-  const { addBatchCodes, addIgnoredBatchCodes } = useAppStore();
+  const { batchItems, addBatchCodes, addIgnoredBatchCodes } = useAppStore();
+
+  // Keep scannedCodesRef synced with store batchItems
+  useEffect(() => {
+    const currentSet = new Set(batchItems.map(i => i.code));
+    scannedCodesRef.current = currentSet;
+  }, [batchItems]);
 
   useEffect(() => {
     let isMounted = true;
@@ -168,8 +175,12 @@ export function useBatchOCR() {
           addIgnoredBatchCodes(ignoredCodes);
         }
 
-        if (validCodes.length > 0) {
-          const addedNew = addBatchCodes(validCodes);
+        // Filter out codes that are already in scannedCodesRef
+        const newUnseenCodes = validCodes.filter(c => !scannedCodesRef.current.has(c.code));
+
+        if (newUnseenCodes.length > 0) {
+          newUnseenCodes.forEach(c => scannedCodesRef.current.add(c.code));
+          const addedNew = addBatchCodes(newUnseenCodes);
           if (addedNew) {
             playDetectionFeedback();
           }

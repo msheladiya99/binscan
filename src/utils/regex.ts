@@ -129,51 +129,19 @@ export function validatePermCode(code: string): boolean {
 
 /**
  * Normalizes a raw warehouse CASE/TEMP/PERM code string.
- * Trims whitespace, converts to uppercase, removes accidental internal spaces around underscores,
- * and corrects positional digit misreads (O->0, I->1, L->1, S->5, B->8).
+ * Trims whitespace, converts to uppercase, removes accidental internal spaces around underscores.
+ * Performs strictly exact validation without altering original digits.
  */
 export function normalizeCaseTempCode(raw: string): string | null {
   if (!raw) return null;
   // Basic cleanup: trim, uppercase, collapse extra spaces around underscores
   let cleaned = raw.trim().toUpperCase().replace(/\s*_\s*/g, '_');
   
-  // If it already matches perfectly
   if (CASE_CODE_REGEX.test(cleaned) || TEMP_CODE_REGEX.test(cleaned) || PERM_CODE_REGEX.test(cleaned)) {
     return cleaned;
   }
 
-  // Attempt positional normalization: DIGITS_(CASE|TEMP|PERM)_8DIGITS
-  const match = cleaned.match(/^([A-Z0-9]+)_(CASE|TEMP|PERM)_([A-Z0-9]+)$/);
-  if (match) {
-    const [, prefix, mode, suffix] = match;
-    // Fix digits in prefix and suffix
-    const fixedPrefix = fixDigitsOnly(prefix);
-    const fixedSuffix = fixDigitsOnly(suffix);
-    
-    if (fixedPrefix && fixedSuffix && fixedSuffix.length === 8) {
-      const candidate = `${fixedPrefix}_${mode}_${fixedSuffix}`;
-      if (CASE_CODE_REGEX.test(candidate) || TEMP_CODE_REGEX.test(candidate) || PERM_CODE_REGEX.test(candidate)) {
-        return candidate;
-      }
-    }
-  }
-
   return null;
-}
-
-function fixDigitsOnly(str: string): string | null {
-  let out = '';
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    if (/[0-9]/.test(ch)) {
-      out += ch;
-    } else if (DIGIT_FIXES[ch]) {
-      out += DIGIT_FIXES[ch];
-    } else {
-      return null;
-    }
-  }
-  return out;
 }
 
 export interface ExtractedBatchResult {
@@ -183,7 +151,8 @@ export interface ExtractedBatchResult {
 
 /**
  * Extracts all visible candidate CASE, TEMP, and PERM codes from OCR text or multi-line string.
- * Multi-code detection support. Deduplicates results.
+ * Strictly extracts ONLY exact matching warehouse codes (DIGITS_CASE_8DIGITS, DIGITS_TEMP_8DIGITS, DIGITS_PERM_8DIGITS).
+ * Never mutates original digits or generates fake codes.
  */
 export function extractCaseTempCodes(rawText: string): ExtractedBatchResult {
   if (!rawText) return { validCodes: [], ignoredCodes: [] };
@@ -191,11 +160,11 @@ export function extractCaseTempCodes(rawText: string): ExtractedBatchResult {
   const validSet = new Map<string, 'CASE' | 'TEMP'>();
   const ignoredSet = new Set<string>();
 
-  // 1. Process line by line and token by token after cleaning spaces around underscores
+  // Clean spaces around underscores
   const cleanedText = rawText.toUpperCase().replace(/\s*_\s*/g, '_');
   
-  // Match potential candidate tokens containing _CASE_, _TEMP_, or _PERM_
-  const candidateRegex = /[A-Z0-9]+_(?:CASE|TEMP|PERM)_[A-Z0-9]+/g;
+  // Strict regex candidate extraction matching DIGITS_(CASE|TEMP|PERM)_8DIGITS
+  const candidateRegex = /[0-9]+_(?:CASE|TEMP|PERM)_[0-9]{8}/g;
   const matches = cleanedText.match(candidateRegex) || [];
 
   for (const m of matches) {
@@ -211,7 +180,7 @@ export function extractCaseTempCodes(rawText: string): ExtractedBatchResult {
     }
   }
 
-  // 2. Also split by whitespace/newlines and test tokens directly in case regex missed surrounding boundaries
+  // Also test individual tokens separated by whitespace or line breaks
   const tokens = cleanedText.split(/[\s,;\r\n]+/);
   for (const token of tokens) {
     if (!token) continue;
